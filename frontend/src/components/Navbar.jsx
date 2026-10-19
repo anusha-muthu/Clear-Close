@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const navLinks = [
   { label: "Home", href: "#home" },
   { label: "Our Services", href: "#features" },
@@ -6,6 +8,8 @@ const navLinks = [
 ];
 
 function Navbar() {
+  const [loginMenuOpen, setLoginMenuOpen] = useState(false);
+
   return (
     <header
       style={{
@@ -82,39 +86,79 @@ function Navbar() {
           ))}
         </div>
 
-        <div style={{ alignItems: "center", display: "flex", gap: "22px" }}>
-          <a
-            href="#login"
-            style={{
-              color: "#1b251e",
-              fontSize: "14px",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Login
-          </a>
-
-          <a href="#borrower-login">Login Borrower</a>
-          <a
-            href="#features"
+        <div
+          onMouseLeave={() => setLoginMenuOpen(false)}
+          style={{ marginLeft: "auto", position: "relative", transform: "translateX(-48px)" }}
+        >
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={loginMenuOpen}
+            onClick={() => setLoginMenuOpen((open) => !open)}
             style={{
               background: "#000",
+              border: "none",
               borderRadius: "999px",
               color: "#fff",
+              cursor: "pointer",
               fontSize: "14px",
               fontWeight: 700,
-              padding: "14px 24px",
-              textDecoration: "none",
+              padding: "14px 30px",
               whiteSpace: "nowrap",
             }}
           >
-            Get Started
-          </a>
+            Login 
+          </button>
+
+          {loginMenuOpen && (
+            <div
+              role="menu"
+              aria-label="Choose login type"
+              style={{
+                background: "#fff",
+                border: "1px solid #e3e9e2",
+                borderRadius: "14px",
+                boxShadow: "0 12px 32px rgba(16, 32, 24, 0.14)",
+                minWidth: "190px",
+                padding: "8px",
+                position: "absolute",
+                left: "50%",
+                top: "calc(100% + 10px)",
+                transform: "translateX(-50%)",
+              }}
+            >
+              <a
+                href="#borrower-login"
+                role="menuitem"
+                onClick={() => setLoginMenuOpen(false)}
+                style={menuItemStyle}
+              >
+                Borrower
+              </a>
+              <a
+                href="#officer-login"
+                role="menuitem"
+                onClick={() => setLoginMenuOpen(false)}
+                style={menuItemStyle}
+              >
+                Officer
+              </a>
+            </div>
+          )}
         </div>
       </nav>
     </header>
   );
 }
+
+const menuItemStyle = {
+  borderRadius: "9px",
+  color: "#1b251e",
+  display: "block",
+  fontSize: "14px",
+  fontWeight: 600,
+  padding: "12px 14px",
+  textDecoration: "none",
+};
 
 export default Navbar;

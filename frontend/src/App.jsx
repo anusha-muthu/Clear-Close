@@ -6,6 +6,8 @@ import HowItWorks from "./components/HowitWorks";
 import Footer from "./components/Footer";
 import BorrowerLogin from "./pages/BorrowerLogin";
 import BorrowerDashboard from "./pages/BorrowerDashboard";
+import OfficerLogin from "./pages/OfficerLogin";
+import OfficerDashboard from "./pages/OfficerDashboard";
 
 function App() {
   const [route, setRoute] = useState(window.location.hash);
@@ -31,8 +33,13 @@ function App() {
     session.accountType === "BORROWER" &&
     session.role === "BORROWER";
 
+  const isOfficer =
+    session?.token &&
+    session.accountType === "OFFICER" &&
+    session.role === "LOAN_CLOSURE_OFFICER";
+
   const handleLogin = (data) => {
-    const borrowerSession = {
+    const userSession = {
       token: data.token,
       username: data.username,
       userId: data.userId,
@@ -42,15 +49,15 @@ function App() {
 
     sessionStorage.setItem(
       "clearclose_session",
-      JSON.stringify(borrowerSession),
+      JSON.stringify(userSession),
     );
-    setSession(borrowerSession);
+    setSession(userSession);
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem("clearclose_session");
     setSession(null);
-    window.location.hash = "#borrower-login";
+    window.location.hash = "#home";
   };
 
   if (route === "#borrower-login") {
@@ -69,6 +76,24 @@ function App() {
     }
 
     return <BorrowerDashboard session={session} onLogout={handleLogout} />;
+  }
+
+  if (route === "#officer-login") {
+    if (isOfficer) {
+      window.location.hash = "#officer-dashboard";
+      return null;
+    }
+
+    return <OfficerLogin onLogin={handleLogin} />;
+  }
+
+  if (route === "#officer-dashboard") {
+    if (!isOfficer) {
+      window.location.hash = "#officer-login";
+      return null;
+    }
+
+    return <OfficerDashboard session={session} onLogout={handleLogout} />;
   }
 
   return (
