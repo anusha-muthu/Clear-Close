@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getOfficerRequests,
@@ -100,6 +100,8 @@ function OfficerDashboard({ session, onLogout }) {
   const [decision, setDecision] = useState("APPROVED");
   const [remarks, setRemarks] = useState("");
   const [savingDecision, setSavingDecision] = useState(false);
+  const decisionSubmittingRef = useRef(false);
+  const [decisionResult, setDecisionResult] = useState(null);
 
   const [error, setError] = useState("");
   const [detailsError, setDetailsError] = useState("");
@@ -257,17 +259,27 @@ function OfficerDashboard({ session, onLogout }) {
 
   async function handleDecision(event) {
     event.preventDefault();
-    if (!selectedRequest) return;
+    if (!selectedRequest || decisionSubmittingRef.current) return;
 
     const decisionRemarks = remarks.trim();
+    if (!["APPROVED", "REJECTED", "MORE_INFO_REQUIRED"].includes(decision)) {
+      setActionError("Choose a valid decision.");
+      return;
+    }
     if (!decisionRemarks) {
       setActionError("Please enter decision remarks.");
       return;
     }
+    if (decisionRemarks.length > 1000) {
+      setActionError("Decision remarks must be 1000 characters or fewer.");
+      return;
+    }
 
+    decisionSubmittingRef.current = true;
     setSavingDecision(true);
     setActionError("");
     setSuccess("");
+    setDecisionResult(null);
 
     try {
       const result = await makeOfficerDecision(
@@ -277,17 +289,17 @@ function OfficerDashboard({ session, onLogout }) {
         decisionRemarks,
       );
 
-      setSuccess(
-        result?.exitRequestId != null && result?.status
-          ? `Request #${result.exitRequestId} updated to ${result.status}.`
-          : "Decision submitted successfully.",
-      );
+      setDecisionResult(result);
+      setSuccess(result?.status
+        ? `Request #${result.exitRequestId ?? selectedRequest.exitRequestId} updated to ${result.status}.`
+        : "Decision submitted successfully.");
       setRemarks("");
       setDecision("APPROVED");
       setRefreshCount((count) => count + 1);
     } catch (err) {
       setActionError(err.message);
     } finally {
+      decisionSubmittingRef.current = false;
       setSavingDecision(false);
     }
   }
@@ -612,9 +624,12 @@ function OfficerDashboard({ session, onLogout }) {
                       </div>
 
                       <button
-                        onClick={() =>
-                          setSelectedId(request.exitRequestId)
-                        }
+                        onClick={() => {
+                          setSelectedId(request.exitRequestId);
+                          setDecisionResult(null);
+                          setSuccess("");
+                          setActionError("");
+                        }}
                         className="dashboard-primary-button full-width officer-request-action"
                       >
                         View Request Details →
@@ -634,16 +649,39 @@ function OfficerDashboard({ session, onLogout }) {
           {/* SELECTED REQUEST DETAILS */}
 
           {selectedId != null && (
-              <section className="officer-details-panel">
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget && !savingDecision && !assigning) {
+                  setSelectedId(null);
+                  setDecisionResult(null);
+                  setSuccess("");
+                  setActionError("");
+                }
+              }}
+            >
+              <section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="officer-request-details-title"
+                className="officer-details-panel !mt-0 max-h-[90vh] w-full max-w-5xl overflow-y-auto"
+              >
 
               <div className="flex items-center justify-between gap-4">
 
-                <h3 className="text-xl font-semibold">
+                <h3 id="officer-request-details-title" className="text-xl font-semibold">
                   Request Details
                 </h3>
 
                 <button
-                  onClick={() => setSelectedId(null)}
+                  disabled={savingDecision || assigning}
+                  onClick={() => {
+                    setSelectedId(null);
+                    setDecisionResult(null);
+                    setSuccess("");
+                    setActionError("");
+                  }}
                   className="text-sm text-gray-500 hover:text-black"
                 >
                   Close ✕
@@ -663,6 +701,22 @@ function OfficerDashboard({ session, onLogout }) {
                 </p>
               )}
 
+              {decisionResult && (
+                <section role="status" className="mt-5 rounded-xl border border-green-200 bg-green-50 p-5 text-green-950">
+                  <h3 className="font-semibold">
+                    {decisionResult.status === "APPROVED"
+                      ? "Cooling-Off Exit Request Approved Successfully"
+                      : "Cooling-Off Exit Request Updated"}
+                  </h3>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <DetailField label="Request ID" value={decisionResult.exitRequestId} />
+                    <DetailField label="Updated Status" value={decisionResult.status} />
+                    <DetailField label="Decision Date" value={formatDate(decisionResult.decidedAt)} />
+                    <DetailField label="Decision Remarks" value={decisionResult.remarks} />
+                  </div>
+                </section>
+              )}
+
               {selectedRequest && !detailsLoading && (
                 <>
 
@@ -675,6 +729,27 @@ function OfficerDashboard({ session, onLogout }) {
                       Request #{selectedRequest.exitRequestId}
                     </span>
                   </div>
+
+                  {selectedRequest.status === "APPROVED" && (
+                    <p className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">
+                      Exit request approved. Settlement acceptance, payment verification and final exit completion may still be pending.
+                    </p>
+                  )}
+                  {selectedRequest.status === "REJECTED" && (
+                    <p className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
+                      This cooling-off exit request was rejected.
+                    </p>
+                  )}
+                  {selectedRequest.status === "MORE_INFO_REQUIRED" && (
+                    <p className="mt-4 rounded-xl bg-orange-50 p-4 text-sm text-orange-900">
+                      More information is required for this request.
+                    </p>
+                  )}
+                  {selectedRequest.status === "COMPLETED" && (
+                    <p className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">
+                      This cooling-off exit request is completed.
+                    </p>
+                  )}
 
                   <div className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 
@@ -841,7 +916,7 @@ function OfficerDashboard({ session, onLogout }) {
                       <textarea
                         id="officer-remarks"
                         value={remarks}
-                        onChange={(event) => setRemarks(event.target.value)}
+                        onChange={(event) => setRemarks(event.target.value.slice(0, 1000))}
                         placeholder="Enter the reason for your decision..."
                         maxLength={1000}
                         required
@@ -855,6 +930,9 @@ function OfficerDashboard({ session, onLogout }) {
                       >
                         {savingDecision ? "Saving..." : "Submit decision"}
                       </button>
+                      <p className="mt-2 text-right text-xs text-gray-500">
+                        {remarks.length}/1000
+                      </p>
                     </form>
                   )}
 
@@ -873,7 +951,8 @@ function OfficerDashboard({ session, onLogout }) {
                 </>
               )}
 
-            </section>
+              </section>
+            </div>
           )}
 
         </main>

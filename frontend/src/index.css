@@ -10,6 +10,30 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keep every scrollable popup visibly rounded, including the scrollbar edge. */
+[role="dialog"][aria-modal="true"] {
+  border-radius: 24px !important;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+[role="dialog"][aria-modal="true"]::-webkit-scrollbar {
+  width: 10px;
+}
+
+[role="dialog"][aria-modal="true"]::-webkit-scrollbar-track {
+  margin-block: 18px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+[role="dialog"][aria-modal="true"]::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #b8c2b4;
+  background-clip: content-box;
+}
+
 .hero-summary-card {
   max-width: 25rem;
 }

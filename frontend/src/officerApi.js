@@ -24,19 +24,24 @@ async function apiRequest(path, token, method = "GET", body = null) {
   }
 
   if (!response.ok) {
+    let message;
     if (response.status === 401) {
-      throw new Error("Session expired. Please log in again.");
+      message = "Session expired. Please log in again.";
+    } else if (response.status === 400) {
+      message = "The request contains invalid information.";
+    } else if (response.status === 403) {
+      message = "Access denied. Check officer permissions or self-review restrictions.";
+    } else if (response.status === 404) {
+      message = "The cooling-off request was not found.";
+    } else if (response.status === 409) {
+      message = "The request cannot be updated in its current state or requires further verification.";
+    } else {
+      message = `Request failed (${response.status})`;
     }
 
-    if (response.status === 403) {
-      throw new Error("Access denied. Check officer permissions or self-review restrictions.");
-    }
-
-    throw new Error(
-      data?.message ||
-      data?.detail ||
-      `Request failed (${response.status})`
-    );
+    const error = new Error(data?.message || data?.detail || data?.error || message);
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -131,10 +136,23 @@ export function makeOfficerDecision(
   decision,
   remarks
 ) {
+  const allowedDecisions = ["APPROVED", "REJECTED", "MORE_INFO_REQUIRED"];
+  const normalizedRemarks = String(remarks || "").trim();
+
+  if (!allowedDecisions.includes(decision)) {
+    throw new Error("Choose a valid officer decision.");
+  }
+  if (!normalizedRemarks) {
+    throw new Error("Decision remarks are required.");
+  }
+  if (normalizedRemarks.length > 1000) {
+    throw new Error("Decision remarks must be 1000 characters or fewer.");
+  }
+
   return apiRequest(
     `/api/officer/cooling-off/requests/${requestId}/decision`,
     token,
     "PATCH",
-    { decision, remarks }
+    { decision, remarks: normalizedRemarks }
   );
 }
