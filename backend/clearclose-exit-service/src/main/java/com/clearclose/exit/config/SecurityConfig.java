@@ -33,9 +33,9 @@ public class SecurityConfig {
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
-    // ---------------------------------------
+    // -----------------------------------------
     // JWT DECODER
-    // ---------------------------------------
+    // -----------------------------------------
 
     @Bean
     public JwtDecoder jwtDecoder() {
@@ -70,9 +70,9 @@ public class SecurityConfig {
         return decoder;
     }
 
-    // ---------------------------------------
-    // READ BORROWER ROLE FROM JWT
-    // ---------------------------------------
+    // -----------------------------------------
+    // JWT ROLE CONVERTER
+    // -----------------------------------------
 
     @Bean
     public JwtAuthenticationConverter jwtConverter() {
@@ -82,26 +82,44 @@ public class SecurityConfig {
 
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
 
-            String role = jwt.getClaimAsString("role");
             String accountType =
                 jwt.getClaimAsString("accountType");
 
-            if (!"BORROWER".equals(accountType)
-                    || !"BORROWER".equals(role)) {
-                return List.of();
+            String role =
+                jwt.getClaimAsString("role");
+
+            // Borrower account
+            if ("BORROWER".equals(accountType)
+                    && "BORROWER".equals(role)) {
+
+                return List.of(
+                    new SimpleGrantedAuthority(
+                        "ROLE_BORROWER"
+                    )
+                );
             }
 
-            return List.of(
-                new SimpleGrantedAuthority("ROLE_BORROWER")
-            );
+            // Loan Closure Officer account
+            if ("OFFICER".equals(accountType)
+                    && "LOAN_CLOSURE_OFFICER".equals(role)) {
+
+                return List.of(
+                    new SimpleGrantedAuthority(
+                        "ROLE_LOAN_CLOSURE_OFFICER"
+                    )
+                );
+            }
+
+            // All other roles
+            return List.of();
         });
 
         return converter;
     }
 
-    // ---------------------------------------
-    // SECURE ELIGIBILITY ENDPOINT
-    // ---------------------------------------
+    // -----------------------------------------
+    // SECURITY RULES
+    // -----------------------------------------
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -120,16 +138,25 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
 
+                // Officer Dashboard
+                .requestMatchers(
+                    "/api/officer/cooling-off/**"
+                ).hasRole("LOAN_CLOSURE_OFFICER")
+
+                // Borrower Cooling-Off APIs
                 .requestMatchers(
                     "/api/cooling-off/**"
                 ).hasRole("BORROWER")
 
+                // Block everything else
                 .anyRequest().denyAll()
             )
 
             .oauth2ResourceServer(oauth ->
                 oauth.jwt(jwt ->
-                    jwt.jwtAuthenticationConverter(converter)
+                    jwt.jwtAuthenticationConverter(
+                        converter
+                    )
                 )
             );
 
