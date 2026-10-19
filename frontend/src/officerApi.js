@@ -1,16 +1,20 @@
 
 const API_URL = "http://localhost:8080";
 
-// Common function for calling backend APIs
-async function apiRequest(path, token, method = "GET") {
+// Common API request function
+async function apiRequest(path, token, method = "GET", body = null) {
+
   const response = await fetch(`${API_URL}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
     },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
   const text = await response.text();
+
   let data = null;
 
   try {
@@ -25,12 +29,12 @@ async function apiRequest(path, token, method = "GET") {
     }
 
     if (response.status === 403) {
-      throw new Error("You are not authorized for this action.");
+      throw new Error("Access denied. Check officer permissions or self-review restrictions.");
     }
 
     throw new Error(
-      data?.error ||
       data?.message ||
+      data?.detail ||
       `Request failed (${response.status})`
     );
   }
@@ -38,8 +42,12 @@ async function apiRequest(path, token, method = "GET") {
   return data;
 }
 
-// 1. Officer Login
+// -----------------------------------------
+// 1. OFFICER LOGIN
+// -----------------------------------------
+
 export async function loginOfficer(username, password) {
+
   const response = await fetch(
     `${API_URL}/api/auth/officer/login`,
     {
@@ -62,15 +70,16 @@ export async function loginOfficer(username, password) {
     data.accountType !== "OFFICER" ||
     data.role !== "LOAN_CLOSURE_OFFICER"
   ) {
-    throw new Error(
-      "Only Loan Closure Officers can access this dashboard."
-    );
+    throw new Error("Only Loan Closure Officers can access this portal.");
   }
 
   return data;
 }
 
-// 2. Get all accessible requests
+// -----------------------------------------
+// 2. GET OFFICER REQUESTS
+// -----------------------------------------
+
 export function getOfficerRequests(token) {
   return apiRequest(
     "/api/officer/cooling-off/requests",
@@ -78,7 +87,10 @@ export function getOfficerRequests(token) {
   );
 }
 
-// 3. Get one request's details
+// -----------------------------------------
+// 3. GET REQUEST DETAILS
+// -----------------------------------------
+
 export function getOfficerRequestDetails(token, requestId) {
   return apiRequest(
     `/api/officer/cooling-off/requests/${requestId}`,
@@ -86,7 +98,10 @@ export function getOfficerRequestDetails(token, requestId) {
   );
 }
 
-// 4. Get dashboard summary
+// -----------------------------------------
+// 4. GET DASHBOARD SUMMARY
+// -----------------------------------------
+
 export function getOfficerSummary(token) {
   return apiRequest(
     "/api/officer/cooling-off/summary",
@@ -94,11 +109,32 @@ export function getOfficerSummary(token) {
   );
 }
 
-// 5. Assign request to logged-in officer
+// -----------------------------------------
+// 5. ASSIGN REQUEST
+// -----------------------------------------
+
 export function assignRequest(token, requestId) {
   return apiRequest(
     `/api/officer/cooling-off/requests/${requestId}/assign`,
     token,
     "PATCH"
+  );
+}
+
+// -----------------------------------------
+// 6. OFFICER DECISION - STEP 24
+// -----------------------------------------
+
+export function makeOfficerDecision(
+  token,
+  requestId,
+  decision,
+  remarks
+) {
+  return apiRequest(
+    `/api/officer/cooling-off/requests/${requestId}/decision`,
+    token,
+    "PATCH",
+    { decision, remarks }
   );
 }

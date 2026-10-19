@@ -6,6 +6,7 @@ import {
   getOfficerRequestDetails,
   getOfficerSummary,
   assignRequest,
+  makeOfficerDecision,
 } from "../officerApi";
 
 // -----------------------------------------
@@ -96,10 +97,14 @@ function OfficerDashboard({ session, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [decision, setDecision] = useState("APPROVED");
+  const [remarks, setRemarks] = useState("");
+  const [savingDecision, setSavingDecision] = useState(false);
 
   const [error, setError] = useState("");
   const [detailsError, setDetailsError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [refreshCount, setRefreshCount] = useState(0);
 
@@ -233,10 +238,12 @@ function OfficerDashboard({ session, onLogout }) {
   async function handleAssign(requestId) {
     setAssigning(true);
     setActionError("");
+    setSuccess("");
 
     try {
       await assignRequest(session.token, requestId);
 
+      setSuccess("Request assigned successfully.");
       // Refresh request list, summary and details
       setRefreshCount((count) => count + 1);
 
@@ -245,6 +252,43 @@ function OfficerDashboard({ session, onLogout }) {
 
     } finally {
       setAssigning(false);
+    }
+  }
+
+  async function handleDecision(event) {
+    event.preventDefault();
+    if (!selectedRequest) return;
+
+    const decisionRemarks = remarks.trim();
+    if (!decisionRemarks) {
+      setActionError("Please enter decision remarks.");
+      return;
+    }
+
+    setSavingDecision(true);
+    setActionError("");
+    setSuccess("");
+
+    try {
+      const result = await makeOfficerDecision(
+        session.token,
+        selectedRequest.exitRequestId,
+        decision,
+        decisionRemarks,
+      );
+
+      setSuccess(
+        result?.exitRequestId != null && result?.status
+          ? `Request #${result.exitRequestId} updated to ${result.status}.`
+          : "Decision submitted successfully.",
+      );
+      setRemarks("");
+      setDecision("APPROVED");
+      setRefreshCount((count) => count + 1);
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setSavingDecision(false);
     }
   }
 
@@ -287,6 +331,10 @@ function OfficerDashboard({ session, onLogout }) {
       value: summary?.completed ?? 0,
     },
   ];
+
+  const canDecide =
+    selectedRequest?.status === "UNDER_REVIEW" &&
+    Number(selectedRequest.officerId) === Number(session.userId);
 
   // =========================================
   // RENDER
@@ -765,16 +813,62 @@ function OfficerDashboard({ session, onLogout }) {
 
                   )}
 
+                  {canDecide && (
+                    <form
+                      onSubmit={handleDecision}
+                      className="officer-decision-form mt-6 rounded-xl border border-lime-200 bg-lime-50 p-5"
+                    >
+                      <h3 className="text-lg font-semibold">Officer decision</h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Record your review outcome and supporting remarks.
+                      </p>
+                      <label className="mt-4 block text-sm font-medium" htmlFor="officer-decision">
+                        Decision
+                      </label>
+                      <select
+                        id="officer-decision"
+                        value={decision}
+                        onChange={(event) => setDecision(event.target.value)}
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+                      >
+                        <option value="APPROVED">Approve</option>
+                        <option value="REJECTED">Reject</option>
+                        <option value="MORE_INFO_REQUIRED">Request more information</option>
+                      </select>
+                      <label className="mt-4 block text-sm font-medium" htmlFor="officer-remarks">
+                        Decision remarks
+                      </label>
+                      <textarea
+                        id="officer-remarks"
+                        value={remarks}
+                        onChange={(event) => setRemarks(event.target.value)}
+                        placeholder="Enter the reason for your decision..."
+                        maxLength={1000}
+                        required
+                        rows={4}
+                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+                      />
+                      <button
+                        type="submit"
+                        disabled={savingDecision}
+                        className="dashboard-primary-button mt-4"
+                      >
+                        {savingDecision ? "Saving..." : "Submit decision"}
+                      </button>
+                    </form>
+                  )}
+
+                  {success && (
+                    <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                      {success}
+                    </p>
+                  )}
+
                   {actionError && (
                     <p role="alert" className="mt-4 text-sm text-red-600">
                       {actionError}
                     </p>
                   )}
-
-                  <p className="mt-6 text-xs text-gray-500">
-                    Approval and rejection will be added
-                    in Step 24.
-                  </p>
 
                 </>
               )}

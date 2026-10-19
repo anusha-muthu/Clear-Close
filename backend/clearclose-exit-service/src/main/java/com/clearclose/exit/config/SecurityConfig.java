@@ -7,6 +7,8 @@ import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -137,6 +139,9 @@ public class SecurityConfig {
             )
 
             .authorizeHttpRequests(auth -> auth
+
+                // Allow the original error response to reach the client.
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 
                 // Officer Dashboard
                 .requestMatchers(
