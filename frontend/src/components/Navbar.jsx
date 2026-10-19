@@ -94,6 +94,8 @@ function Navbar() {
           >
             Login
           </a>
+
+          <a href="#borrower-login">Login Borrower</a>
           <a
             href="#features"
             style={{
