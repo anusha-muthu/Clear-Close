@@ -72,5 +72,22 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
+    
+    // Handle active/duplicate request validation issues
+    @ExceptionHandler(DuplicateRequestException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateRequestException(
+            DuplicateRequestException ex, 
+            HttpServletRequest request) {
+        
+        ErrorResponse errorDetails = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),            // Status 409 represents a resource state conflict
+                HttpStatus.CONFLICT.getReasonPhrase(),  // "Conflict"
+                ex.getMessage(),                        // "An active release request already exists"
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorDetails, HttpStatus.CONFLICT);
+    }
+
 
 }

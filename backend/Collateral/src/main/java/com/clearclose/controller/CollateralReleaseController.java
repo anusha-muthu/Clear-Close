@@ -10,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/collateral-release/requests")
+@CrossOrigin(origins = "http://localhost:5173")
 public class CollateralReleaseController {
 
     private final CollateralReleaseService releaseService;

@@ -17,4 +17,6 @@ public interface CollateralReleaseRepository extends JpaRepository <CollateralRe
 	List<CollateralReleaseRequests> findByCollateralIdAndStatusIn(
 	        Long collateralId, List<String> statuses);
 
+    boolean existsByLoanAccountId(Long loanAccountId);
+
 }
