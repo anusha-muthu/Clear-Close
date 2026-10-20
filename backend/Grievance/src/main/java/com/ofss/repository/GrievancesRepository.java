@@ -16,5 +16,5 @@ public interface GrievancesRepository
     List<Grievances> findByStatusIgnoreCase(String status);
     List<Grievances> findByLoanAccountId(Long loanAccountId);
     List<Grievances> findByStatusNotInAndCreatedAtBefore(List<String> statuses,LocalDateTime cutoff);
-
+    boolean existsByLoanAccountId(Long loanAccountId);
 }
