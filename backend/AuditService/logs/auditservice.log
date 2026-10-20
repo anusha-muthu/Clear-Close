@@ -1,0 +1,504 @@
+2026-10-20T10:24:40.435+05:30  INFO 1612 --- [AuditService] [restartedMain] com.clearclose.AuditServiceApplication   : Starting AuditServiceApplication using Java 25.0.4.1 with PID 1612 (C:\Clear Close\Backend\AuditService\target\classes started by Anusha M in C:\Clear Close\Backend\AuditService)
+2026-10-20T10:24:40.436+05:30  INFO 1612 --- [AuditService] [restartedMain] com.clearclose.AuditServiceApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T10:24:40.632+05:30  INFO 1612 --- [AuditService] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T10:24:40.644+05:30  INFO 1612 --- [AuditService] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 6 ms. Found 1 JPA repository interface.
+2026-10-20T10:24:40.695+05:30  INFO 1612 --- [AuditService] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=a3ac7965-4ef6-3e78-9135-a57652b70fa9
+2026-10-20T10:24:40.746+05:30  INFO 1612 --- [AuditService] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8084 (http)
+2026-10-20T10:24:40.747+05:30  INFO 1612 --- [AuditService] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T10:24:40.747+05:30  INFO 1612 --- [AuditService] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T10:24:40.780+05:30  INFO 1612 --- [AuditService] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 337 ms
+2026-10-20T10:24:40.811+05:30  INFO 1612 --- [AuditService] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T10:24:40.832+05:30  INFO 1612 --- [AuditService] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T10:24:40.833+05:30  INFO 1612 --- [AuditService] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Starting...
+2026-10-20T10:24:40.924+05:30  INFO 1612 --- [AuditService] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-2 - Added connection oracle.jdbc.driver.T4CConnection@7dcc17bd
+2026-10-20T10:24:40.924+05:30  INFO 1612 --- [AuditService] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Start completed.
+2026-10-20T10:24:40.928+05:30  WARN 1612 --- [AuditService] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T10:24:40.928+05:30  INFO 1612 --- [AuditService] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T10:24:40.976+05:30  INFO 1612 --- [AuditService] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T10:24:41.101+05:30  INFO 1612 --- [AuditService] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T10:24:41.156+05:30  WARN 1612 --- [AuditService] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T10:24:41.312+05:30  INFO 1612 --- [AuditService] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T10:24:41.320+05:30  WARN 1612 --- [AuditService] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T10:24:41.342+05:30  INFO 1612 --- [AuditService] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T10:24:41.344+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T10:24:41.345+05:30  INFO 1612 --- [AuditService] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T10:24:41.345+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T10:24:41.345+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T10:24:41.345+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T10:24:41.345+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T10:24:41.345+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T10:24:41.346+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T10:24:41.346+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T10:24:41.366+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T10:24:41.366+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T10:24:41.366+05:30  INFO 1612 --- [AuditService] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T10:24:41.366+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792472081366 with initial instances count: 1
+2026-10-20T10:24:41.368+05:30  INFO 1612 --- [AuditService] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application AUDITSERVICE with eureka with status UP
+2026-10-20T10:24:41.368+05:30  INFO 1612 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792472081368, current=UP, previous=STARTING]
+2026-10-20T10:24:41.368+05:30  INFO 1612 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084: registering service...
+2026-10-20T10:24:41.374+05:30  INFO 1612 --- [AuditService] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8084 (http) with context path '/'
+2026-10-20T10:24:41.374+05:30  INFO 1612 --- [AuditService] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8084
+2026-10-20T10:24:41.378+05:30  INFO 1612 --- [AuditService] [restartedMain] o.a.kafka.common.config.AbstractConfig   : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.offset.reset = latest
+	bootstrap.servers = [localhost:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-clearclose-audit-group-2
+	client.rack = 
+	config.providers = []
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	enable.metrics.push = true
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = clearclose-audit-group
+	group.instance.id = null
+	group.protocol = classic
+	group.remote.assignor = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metadata.recovery.rebootstrap.trigger.ms = 300000
+	metadata.recovery.strategy = rebootstrap
+	metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.assertion.algorithm = RS256
+	sasl.oauthbearer.assertion.claim.aud = null
+	sasl.oauthbearer.assertion.claim.exp.seconds = 300
+	sasl.oauthbearer.assertion.claim.iss = null
+	sasl.oauthbearer.assertion.claim.jti.include = false
+	sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+	sasl.oauthbearer.assertion.claim.sub = null
+	sasl.oauthbearer.assertion.file = null
+	sasl.oauthbearer.assertion.private.key.file = null
+	sasl.oauthbearer.assertion.private.key.passphrase = null
+	sasl.oauthbearer.assertion.template.file = null
+	sasl.oauthbearer.client.credentials.client.id = null
+	sasl.oauthbearer.client.credentials.client.secret = null
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = []
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+	sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+	sasl.oauthbearer.scope = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	share.acknowledgement.mode = implicit
+	share.acquire.mode = BATCH_OPTIMIZED
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = []
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-10-20T10:24:41.379+05:30  INFO 1612 --- [AuditService] [restartedMain] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+2026-10-20T10:24:41.382+05:30  INFO 1612 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084 - registration status: 204
+2026-10-20T10:24:41.391+05:30  INFO 1612 --- [AuditService] [restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 4.2.1
+2026-10-20T10:24:41.391+05:30  INFO 1612 --- [AuditService] [restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 92f61c44867f39dc
+2026-10-20T10:24:41.391+05:30  INFO 1612 --- [AuditService] [restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1792472081391
+2026-10-20T10:24:41.391+05:30  INFO 1612 --- [AuditService] [restartedMain] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Subscribed to topic(s): clearclose.audit.events
+2026-10-20T10:24:41.395+05:30  INFO 1612 --- [AuditService] [restartedMain] com.clearclose.AuditServiceApplication   : Started AuditServiceApplication in 1.016 seconds (process running for 287.593)
+2026-10-20T10:24:41.397+05:30  INFO 1612 --- [AuditService] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T10:24:41.398+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Cluster ID: 7NRypFmjQPm7jFam5cAHrA
+2026-10-20T10:24:41.398+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Discovered group coordinator localhost:9092 (id: 2147483646 rack: null isFenced: false)
+2026-10-20T10:24:41.399+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] (Re-)joining group
+2026-10-20T10:24:41.403+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Request joining group due to: need to re-join with the given member-id: consumer-clearclose-audit-group-2-7af2b3ca-7ae0-4b74-bd65-d92b616b6b50
+2026-10-20T10:24:41.404+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] (Re-)joining group
+2026-10-20T10:24:44.409+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Successfully joined group with generation Generation{generationId=7, memberId='consumer-clearclose-audit-group-2-7af2b3ca-7ae0-4b74-bd65-d92b616b6b50', protocol='range'}
+2026-10-20T10:24:44.410+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Finished assignment for group at generation 7: {consumer-clearclose-audit-group-2-7af2b3ca-7ae0-4b74-bd65-d92b616b6b50=Assignment(partitions=[clearclose.audit.events-0])}
+2026-10-20T10:24:44.419+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Successfully synced group in generation Generation{generationId=7, memberId='consumer-clearclose-audit-group-2-7af2b3ca-7ae0-4b74-bd65-d92b616b6b50', protocol='range'}
+2026-10-20T10:24:44.422+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Notifying assignor about the new Assignment(partitions=[clearclose.audit.events-0])
+2026-10-20T10:24:44.424+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] k.c.c.i.ConsumerRebalanceListenerInvoker : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Adding newly assigned partitions: [clearclose.audit.events-0]
+2026-10-20T10:24:44.431+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerUtils        : Setting offset for partition clearclose.audit.events-0 to the committed offset FetchPosition{offset=4, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[localhost:9092 (id: 1 rack: null isFenced: false)], epoch=0}}
+2026-10-20T10:24:44.432+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : clearclose-audit-group: partitions assigned: [clearclose.audit.events-0]
+2026-10-20T10:24:51.476+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-10-20T10:24:51.477+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application AUDITSERVICE with eureka with status DOWN
+2026-10-20T10:24:51.477+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792472091477, current=DOWN, previous=UP]
+2026-10-20T10:24:51.477+05:30  INFO 1612 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084: registering service...
+2026-10-20T10:24:51.477+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] k.c.c.i.ConsumerRebalanceListenerInvoker : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Revoke previously assigned partitions [clearclose.audit.events-0]
+2026-10-20T10:24:51.479+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : clearclose-audit-group: partitions revoked: [clearclose.audit.events-0]
+2026-10-20T10:24:51.479+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Member consumer-clearclose-audit-group-2-7af2b3ca-7ae0-4b74-bd65-d92b616b6b50 sending LeaveGroup request to coordinator localhost:9092 (id: 2147483646 rack: null isFenced: false) due to the consumer unsubscribed from all topics
+2026-10-20T10:24:51.479+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-20T10:24:51.479+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Request joining group due to: consumer pro-actively leaving the group
+2026-10-20T10:24:51.479+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Unsubscribed all topics or patterns and assigned partitions
+2026-10-20T10:24:51.480+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-20T10:24:51.480+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-2, groupId=clearclose-audit-group] Request joining group due to: consumer pro-actively leaving the group
+2026-10-20T10:24:51.485+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-10-20T10:24:51.485+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-20T10:24:51.486+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.telemetry.internals.ClientTelemetryReporter
+2026-10-20T10:24:51.486+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-10-20T10:24:51.490+05:30  INFO 1612 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084 - registration status: 204
+2026-10-20T10:24:51.490+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-clearclose-audit-group-2 unregistered
+2026-10-20T10:24:51.490+05:30  INFO 1612 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : clearclose-audit-group: Consumer stopped
+2026-10-20T10:24:51.491+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T10:24:51.495+05:30  INFO 1612 --- [AuditService] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T10:24:51.498+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T10:24:51.498+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown initiated...
+2026-10-20T10:24:51.509+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown completed.
+2026-10-20T10:24:51.510+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T10:24:54.513+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T10:24:54.532+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084 - deregister  status: 200
+2026-10-20T10:24:54.533+05:30  INFO 1612 --- [AuditService] [RMI TCP Connection(15)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2026-10-20T10:24:56.914+05:30  INFO 8140 --- [AuditService] [restartedMain] com.clearclose.AuditServiceApplication   : Starting AuditServiceApplication using Java 25.0.4.1 with PID 8140 (C:\Clear Close\Backend\AuditService\target\classes started by Anusha M in C:\Clear Close\Backend\AuditService)
+2026-10-20T10:24:56.916+05:30  INFO 8140 --- [AuditService] [restartedMain] com.clearclose.AuditServiceApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T10:24:56.956+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.b.devtools.restart.ChangeableUrls    : The Class-Path manifest attribute in C:\Users\Anusha M\.m2\repository\com\oracle\database\jdbc\ojdbc11\23.26.3.0.0\ojdbc11-23.26.3.0.0.jar referenced one or more files that do not exist: file:/C:/Users/Anusha%20M/.m2/repository/com/oracle/database/jdbc/ojdbc11/23.26.3.0.0/oraclepki.jar
+2026-10-20T10:24:56.956+05:30  INFO 8140 --- [AuditService] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-10-20T10:24:56.956+05:30  INFO 8140 --- [AuditService] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-10-20T10:24:57.422+05:30  INFO 8140 --- [AuditService] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T10:24:57.508+05:30  INFO 8140 --- [AuditService] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 79 ms. Found 1 JPA repository interface.
+2026-10-20T10:24:57.640+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=a3ac7965-4ef6-3e78-9135-a57652b70fa9
+2026-10-20T10:24:57.960+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8084 (http)
+2026-10-20T10:24:57.969+05:30  INFO 8140 --- [AuditService] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T10:24:57.971+05:30  INFO 8140 --- [AuditService] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T10:24:58.008+05:30  INFO 8140 --- [AuditService] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1050 ms
+2026-10-20T10:24:58.153+05:30  INFO 8140 --- [AuditService] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T10:24:58.189+05:30  INFO 8140 --- [AuditService] [restartedMain] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.4.5.Final
+2026-10-20T10:24:58.457+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T10:24:58.483+05:30  INFO 8140 --- [AuditService] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-20T10:24:58.725+05:30  INFO 8140 --- [AuditService] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection oracle.jdbc.driver.T4CConnection@37132f59
+2026-10-20T10:24:58.727+05:30  INFO 8140 --- [AuditService] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-20T10:24:58.885+05:30  WARN 8140 --- [AuditService] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T10:24:58.890+05:30  INFO 8140 --- [AuditService] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T10:24:59.499+05:30  INFO 8140 --- [AuditService] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T10:24:59.693+05:30  INFO 8140 --- [AuditService] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T10:24:59.749+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-10-20T10:24:59.929+05:30  WARN 8140 --- [AuditService] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T10:25:00.281+05:30  INFO 8140 --- [AuditService] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T10:25:00.306+05:30  WARN 8140 --- [AuditService] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T10:25:00.362+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T10:25:00.378+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T10:25:00.382+05:30  INFO 8140 --- [AuditService] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T10:25:00.387+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T10:25:00.388+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T10:25:00.388+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T10:25:00.388+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T10:25:00.388+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T10:25:00.388+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T10:25:00.388+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T10:25:00.618+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T10:25:00.620+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T10:25:00.624+05:30  INFO 8140 --- [AuditService] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T10:25:00.625+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792472100625 with initial instances count: 0
+2026-10-20T10:25:00.627+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application AUDITSERVICE with eureka with status UP
+2026-10-20T10:25:00.628+05:30  INFO 8140 --- [AuditService] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792472100628, current=UP, previous=STARTING]
+2026-10-20T10:25:00.629+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084: registering service...
+2026-10-20T10:25:00.652+05:30  INFO 8140 --- [AuditService] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8084 (http) with context path '/'
+2026-10-20T10:25:00.653+05:30  INFO 8140 --- [AuditService] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8084
+2026-10-20T10:25:00.657+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084 - registration status: 204
+2026-10-20T10:25:00.687+05:30  INFO 8140 --- [AuditService] [restartedMain] o.a.kafka.common.config.AbstractConfig   : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.offset.reset = latest
+	bootstrap.servers = [localhost:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-clearclose-audit-group-1
+	client.rack = 
+	config.providers = []
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	enable.metrics.push = true
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = clearclose-audit-group
+	group.instance.id = null
+	group.protocol = classic
+	group.remote.assignor = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metadata.recovery.rebootstrap.trigger.ms = 300000
+	metadata.recovery.strategy = rebootstrap
+	metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.assertion.algorithm = RS256
+	sasl.oauthbearer.assertion.claim.aud = null
+	sasl.oauthbearer.assertion.claim.exp.seconds = 300
+	sasl.oauthbearer.assertion.claim.iss = null
+	sasl.oauthbearer.assertion.claim.jti.include = false
+	sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+	sasl.oauthbearer.assertion.claim.sub = null
+	sasl.oauthbearer.assertion.file = null
+	sasl.oauthbearer.assertion.private.key.file = null
+	sasl.oauthbearer.assertion.private.key.passphrase = null
+	sasl.oauthbearer.assertion.template.file = null
+	sasl.oauthbearer.client.credentials.client.id = null
+	sasl.oauthbearer.client.credentials.client.secret = null
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = []
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+	sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+	sasl.oauthbearer.scope = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	share.acknowledgement.mode = implicit
+	share.acquire.mode = BATCH_OPTIMIZED
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = []
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-10-20T10:25:00.715+05:30  INFO 8140 --- [AuditService] [restartedMain] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+2026-10-20T10:25:00.812+05:30  INFO 8140 --- [AuditService] [restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 4.2.1
+2026-10-20T10:25:00.813+05:30  INFO 8140 --- [AuditService] [restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 92f61c44867f39dc
+2026-10-20T10:25:00.813+05:30  INFO 8140 --- [AuditService] [restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1792472100811
+2026-10-20T10:25:00.815+05:30  INFO 8140 --- [AuditService] [restartedMain] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Subscribed to topic(s): clearclose.audit.events
+2026-10-20T10:25:00.829+05:30  INFO 8140 --- [AuditService] [restartedMain] com.clearclose.AuditServiceApplication   : Started AuditServiceApplication in 4.207 seconds (process running for 4.876)
+2026-10-20T10:25:01.055+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Cluster ID: 7NRypFmjQPm7jFam5cAHrA
+2026-10-20T10:25:01.057+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Discovered group coordinator localhost:9092 (id: 2147483646 rack: null isFenced: false)
+2026-10-20T10:25:01.059+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] (Re-)joining group
+2026-10-20T10:25:01.071+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Request joining group due to: need to re-join with the given member-id: consumer-clearclose-audit-group-1-416506a9-c4a3-464f-ada0-dc47ecef613c
+2026-10-20T10:25:01.072+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] (Re-)joining group
+2026-10-20T10:25:04.080+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Successfully joined group with generation Generation{generationId=9, memberId='consumer-clearclose-audit-group-1-416506a9-c4a3-464f-ada0-dc47ecef613c', protocol='range'}
+2026-10-20T10:25:04.106+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Finished assignment for group at generation 9: {consumer-clearclose-audit-group-1-416506a9-c4a3-464f-ada0-dc47ecef613c=Assignment(partitions=[clearclose.audit.events-0])}
+2026-10-20T10:25:04.118+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Successfully synced group in generation Generation{generationId=9, memberId='consumer-clearclose-audit-group-1-416506a9-c4a3-464f-ada0-dc47ecef613c', protocol='range'}
+2026-10-20T10:25:04.119+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Notifying assignor about the new Assignment(partitions=[clearclose.audit.events-0])
+2026-10-20T10:25:04.125+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] k.c.c.i.ConsumerRebalanceListenerInvoker : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Adding newly assigned partitions: [clearclose.audit.events-0]
+2026-10-20T10:25:04.144+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerUtils        : Setting offset for partition clearclose.audit.events-0 to the committed offset FetchPosition{offset=4, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[localhost:9092 (id: 1 rack: null isFenced: false)], epoch=0}}
+2026-10-20T10:25:04.147+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : clearclose-audit-group: partitions assigned: [clearclose.audit.events-0]
+2026-10-20T10:25:11.697+05:30 ERROR 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.kafka.listener.DefaultErrorHandler   : Backoff FixedBackOffExecution[interval=0, currentAttempts=1, maxAttempts=0] exhausted for clearclose.audit.events-0@4
+
+org.springframework.kafka.listener.ListenerExecutionFailedException: Listener failed
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.decorateException(KafkaMessageListenerContainer.java:3245) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.checkDeser(KafkaMessageListenerContainer.java:3293) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3073) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1825) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[na:na]
+Caused by: org.springframework.kafka.support.serializer.DeserializationException: failed to deserialize
+	at org.springframework.kafka.support.serializer.SerializationUtils.deserializationException(SerializationUtils.java:164) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.support.serializer.ErrorHandlingDeserializer.deserialize(ErrorHandlingDeserializer.java:220) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.apache.kafka.common.serialization.Deserializer.deserialize(Deserializer.java:114) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.CompletedFetch.parseRecord(CompletedFetch.java:324) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.CompletedFetch.fetchRecords(CompletedFetch.java:281) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.FetchCollector.fetchRecords(FetchCollector.java:170) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.FetchCollector.collectFetch(FetchCollector.java:133) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.Fetcher.collectFetch(Fetcher.java:146) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.ClassicKafkaConsumer.pollForFetches(ClassicKafkaConsumer.java:721) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.ClassicKafkaConsumer.poll(ClassicKafkaConsumer.java:645) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.internals.ClassicKafkaConsumer.poll(ClassicKafkaConsumer.java:624) ~[kafka-clients-4.2.1.jar:na]
+	at org.apache.kafka.clients.consumer.KafkaConsumer.poll(KafkaConsumer.java:899) ~[kafka-clients-4.2.1.jar:na]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollConsumer(KafkaMessageListenerContainer.java:1839) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doPoll(KafkaMessageListenerContainer.java:1813) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1494) ~[spring-kafka-4.1.1.jar:4.1.1]
+	... 3 common frames omitted
+Caused by: org.apache.kafka.common.errors.SerializationException: Can't deserialize data  from topic [clearclose.audit.events]
+	at org.springframework.kafka.support.serializer.JacksonJsonDeserializer.deserialize(JacksonJsonDeserializer.java:596) ~[spring-kafka-4.1.1.jar:4.1.1]
+	at org.springframework.kafka.support.serializer.ErrorHandlingDeserializer.deserialize(ErrorHandlingDeserializer.java:217) ~[spring-kafka-4.1.1.jar:4.1.1]
+	... 16 common frames omitted
+Caused by: tools.jackson.databind.exc.MismatchedInputException: Cannot map `null` into type `long` (set `DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES` to 'false' to allow)
+ at [Source: UNKNOWN; byte offset: #231] (through reference chain: com.clearclose.dto.AuditEvent["logId"])
+	at tools.jackson.databind.exc.MismatchedInputException.from(MismatchedInputException.java:67) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.DeserializationContext.reportInputMismatch(DeserializationContext.java:1839) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.DeserializationContext.handleNullForPrimitives(DeserializationContext.java:1467) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.jdk.NumberDeserializers$PrimitiveOrWrapperDeserializer.getNullValue(NumberDeserializers.java:168) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.ValueDeserializer.getAbsentValue(ValueDeserializer.java:384) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.PropertyValueBuffer._findMissing(PropertyValueBuffer.java:298) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.PropertyValueBuffer.getParameters(PropertyValueBuffer.java:213) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.ValueInstantiator.createFromObjectWith(ValueInstantiator.java:271) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.PropertyBasedCreator.build(PropertyBasedCreator.java:294) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.BeanDeserializer._deserializeUsingPropertyBased(BeanDeserializer.java:817) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.BeanDeserializerBase.deserializeFromObjectUsingNonDefault(BeanDeserializerBase.java:1509) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.BeanDeserializer.deserializeFromObject(BeanDeserializer.java:605) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.bean.BeanDeserializer.deserialize(BeanDeserializer.java:200) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.deser.DeserializationContextExt.readRootValue(DeserializationContextExt.java:266) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.ObjectReader._bindAndClose(ObjectReader.java:1888) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at tools.jackson.databind.ObjectReader.readValue(ObjectReader.java:1321) ~[jackson-databind-3.1.5.jar:3.1.5]
+	at org.springframework.kafka.support.serializer.JacksonJsonDeserializer.deserialize(JacksonJsonDeserializer.java:593) ~[spring-kafka-4.1.1.jar:4.1.1]
+	... 17 common frames omitted
+
+2026-10-20T10:25:30.623+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T10:25:30.625+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T10:25:30.626+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T10:25:30.627+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T10:25:30.627+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T10:25:30.630+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2026-10-20T10:25:30.632+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T10:25:30.693+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-CacheRefreshExecutor-%d] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T10:25:58.895+05:30  INFO 8140 --- [AuditService] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 1 class path change (0 additions, 0 deletions, 1 modification)
+2026-10-20T10:25:58.897+05:30  INFO 8140 --- [AuditService] [Thread-1] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application AUDITSERVICE with eureka with status DOWN
+2026-10-20T10:25:58.898+05:30  INFO 8140 --- [AuditService] [Thread-1] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792472158898, current=DOWN, previous=UP]
+2026-10-20T10:25:58.899+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084: registering service...
+2026-10-20T10:25:58.905+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] k.c.c.i.ConsumerRebalanceListenerInvoker : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Revoke previously assigned partitions [clearclose.audit.events-0]
+2026-10-20T10:25:58.906+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : clearclose-audit-group: partitions revoked: [clearclose.audit.events-0]
+2026-10-20T10:25:58.908+05:30  INFO 8140 --- [AuditService] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084 - registration status: 204
+2026-10-20T10:25:58.909+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Member consumer-clearclose-audit-group-1-416506a9-c4a3-464f-ada0-dc47ecef613c sending LeaveGroup request to coordinator localhost:9092 (id: 2147483646 rack: null isFenced: false) due to the consumer unsubscribed from all topics
+2026-10-20T10:25:58.910+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-20T10:25:58.910+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Request joining group due to: consumer pro-actively leaving the group
+2026-10-20T10:25:58.910+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Unsubscribed all topics or patterns and assigned partitions
+2026-10-20T10:25:58.913+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-20T10:25:58.913+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-clearclose-audit-group-1, groupId=clearclose-audit-group] Request joining group due to: consumer pro-actively leaving the group
+2026-10-20T10:25:58.958+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-10-20T10:25:58.960+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-20T10:25:58.960+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.telemetry.internals.ClientTelemetryReporter
+2026-10-20T10:25:58.960+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-10-20T10:25:58.970+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-clearclose-audit-group-1 unregistered
+2026-10-20T10:25:58.970+05:30  INFO 8140 --- [AuditService] [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : clearclose-audit-group: Consumer stopped
+2026-10-20T10:25:58.974+05:30  INFO 8140 --- [AuditService] [Thread-1] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T10:25:58.981+05:30  INFO 8140 --- [AuditService] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T10:25:58.988+05:30  INFO 8140 --- [AuditService] [Thread-1] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T10:25:58.992+05:30  INFO 8140 --- [AuditService] [Thread-1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-20T10:25:59.007+05:30  INFO 8140 --- [AuditService] [Thread-1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-10-20T10:25:59.008+05:30  INFO 8140 --- [AuditService] [Thread-1] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T10:26:02.010+05:30  WARN 8140 --- [AuditService] [DiscoveryClient-%d] c.netflix.discovery.TimedSupervisorTask  : task supervisor shutting down, can't accept the task
+2026-10-20T10:26:02.012+05:30  INFO 8140 --- [AuditService] [Thread-1] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T10:26:02.032+05:30  INFO 8140 --- [AuditService] [Thread-1] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUDITSERVICE/anmuthur-GHT6VL4:AuditService:8084 - deregister  status: 200
+2026-10-20T10:26:02.032+05:30  INFO 8140 --- [AuditService] [Thread-1] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
