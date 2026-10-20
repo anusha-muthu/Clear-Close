@@ -1,0 +1,653 @@
+2026-10-20T14:44:40.741+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Starting CollateralApplication using Java 25.0.4.1 with PID 25188 (C:\Clear Close\Backend\Collateral\target\classes started by Anusha M in C:\Clear Close\Backend\Collateral)
+2026-10-20T14:44:40.741+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T14:44:41.009+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T14:44:41.087+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 26 ms. Found 2 JPA repository interfaces.
+2026-10-20T14:44:41.165+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=3377f2e8-ae82-361e-aa81-4bbf4dc1a7a7
+2026-10-20T14:44:41.239+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-10-20T14:44:41.240+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T14:44:41.240+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T14:44:41.317+05:30  INFO 25188 --- [Collateral] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 574 ms
+2026-10-20T14:44:41.368+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T14:44:41.404+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T14:44:41.407+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Starting...
+2026-10-20T14:44:41.560+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-2 - Added connection oracle.jdbc.driver.T4CConnection@42cde236
+2026-10-20T14:44:41.560+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Start completed.
+2026-10-20T14:44:41.578+05:30  WARN 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T14:44:41.578+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T14:44:41.742+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T14:44:42.127+05:30  INFO 25188 --- [Collateral] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:44:42.306+05:30  WARN 25188 --- [Collateral] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T14:44:42.476+05:30  INFO 25188 --- [Collateral] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T14:44:42.485+05:30  WARN 25188 --- [Collateral] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T14:44:42.508+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T14:44:42.510+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T14:44:42.510+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T14:44:42.510+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T14:44:42.510+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T14:44:42.510+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T14:44:42.511+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T14:44:42.511+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T14:44:42.511+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T14:44:42.512+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T14:44:42.543+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T14:44:42.544+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T14:44:42.544+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T14:44:42.545+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792487682545 with initial instances count: 4
+2026-10-20T14:44:42.551+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application COLLATERAL with eureka with status UP
+2026-10-20T14:44:42.551+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487682551, current=UP, previous=STARTING]
+2026-10-20T14:44:42.552+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:44:42.564+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-10-20T14:44:42.566+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-10-20T14:44:42.580+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:44:42.594+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Started CollateralApplication in 1.943 seconds (process running for 155.811)
+2026-10-20T14:44:42.597+05:30  INFO 25188 --- [Collateral] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T14:45:19.379+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-20T14:45:19.380+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-10-20T14:45:19.383+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2026-10-20T14:45:19.435+05:30 ERROR 25188 --- [Collateral] [http-nio-8081-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: java.lang.RuntimeException: An active release request already exists] with root cause
+
+java.lang.RuntimeException: An active release request already exists
+	at com.clearclose.service.CollateralReleaseService.createRequest(CollateralReleaseService.java:71) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:133) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:371) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:130) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.9.jar:7.0.9]
+	at com.clearclose.service.CollateralReleaseService$$SpringCGLIB$$0.createRequest(<generated>) ~[classes/:na]
+	at com.clearclose.controller.CollateralReleaseController.createRequest(CollateralReleaseController.java:25) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:252) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:184) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:934) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:853) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:86) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:866) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1000) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:903) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:649) ~[tomcat-embed-core-11.0.24.jar:6.1]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:874) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710) ~[tomcat-embed-core-11.0.24.jar:6.1]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:132) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:59) ~[tomcat-embed-websocket-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:199) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:535) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:86) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:71) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:347) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:406) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:71) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:1307) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:2036) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:74) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:949) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:483) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:74) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[na:na]
+
+2026-10-20T14:48:13.135+05:30  INFO 25188 --- [Collateral] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 1 class path change (1 addition, 0 deletions, 0 modifications)
+2026-10-20T14:48:13.143+05:30  INFO 25188 --- [Collateral] [Thread-8] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application COLLATERAL with eureka with status DOWN
+2026-10-20T14:48:13.143+05:30  INFO 25188 --- [Collateral] [Thread-8] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487893143, current=DOWN, previous=UP]
+2026-10-20T14:48:13.143+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:48:13.147+05:30  INFO 25188 --- [Collateral] [Thread-8] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T14:48:13.153+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:48:13.162+05:30  INFO 25188 --- [Collateral] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T14:48:13.167+05:30  INFO 25188 --- [Collateral] [Thread-8] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:48:13.169+05:30  INFO 25188 --- [Collateral] [Thread-8] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown initiated...
+2026-10-20T14:48:13.201+05:30  INFO 25188 --- [Collateral] [Thread-8] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown completed.
+2026-10-20T14:48:13.202+05:30  INFO 25188 --- [Collateral] [Thread-8] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T14:48:16.203+05:30  INFO 25188 --- [Collateral] [Thread-8] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T14:48:16.213+05:30  INFO 25188 --- [Collateral] [Thread-8] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - deregister  status: 200
+2026-10-20T14:48:16.213+05:30  INFO 25188 --- [Collateral] [Thread-8] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2026-10-20T14:48:16.390+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Starting CollateralApplication using Java 25.0.4.1 with PID 25188 (C:\Clear Close\Backend\Collateral\target\classes started by Anusha M in C:\Clear Close\Backend\Collateral)
+2026-10-20T14:48:16.392+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T14:48:16.595+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T14:48:16.612+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 14 ms. Found 2 JPA repository interfaces.
+2026-10-20T14:48:16.670+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=3377f2e8-ae82-361e-aa81-4bbf4dc1a7a7
+2026-10-20T14:48:16.754+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-10-20T14:48:16.756+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T14:48:16.756+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T14:48:16.816+05:30  INFO 25188 --- [Collateral] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 419 ms
+2026-10-20T14:48:16.853+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T14:48:16.877+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T14:48:16.878+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Starting...
+2026-10-20T14:48:16.991+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-3 - Added connection oracle.jdbc.driver.T4CConnection@99697c7
+2026-10-20T14:48:16.992+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Start completed.
+2026-10-20T14:48:16.995+05:30  WARN 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T14:48:16.996+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T14:48:17.057+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T14:48:17.182+05:30  INFO 25188 --- [Collateral] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:48:17.263+05:30  WARN 25188 --- [Collateral] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T14:48:17.397+05:30  INFO 25188 --- [Collateral] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T14:48:17.403+05:30  WARN 25188 --- [Collateral] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T14:48:17.425+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T14:48:17.428+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T14:48:17.428+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T14:48:17.429+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T14:48:17.429+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T14:48:17.430+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T14:48:17.430+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T14:48:17.430+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T14:48:17.431+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T14:48:17.431+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T14:48:17.451+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T14:48:17.452+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T14:48:17.452+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T14:48:17.453+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792487897453 with initial instances count: 4
+2026-10-20T14:48:17.456+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application COLLATERAL with eureka with status UP
+2026-10-20T14:48:17.456+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487897456, current=UP, previous=STARTING]
+2026-10-20T14:48:17.456+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:48:17.466+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-10-20T14:48:17.468+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-10-20T14:48:17.471+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:48:17.482+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Started CollateralApplication in 1.181 seconds (process running for 370.698)
+2026-10-20T14:48:17.483+05:30  INFO 25188 --- [Collateral] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T14:48:21.930+05:30  INFO 25188 --- [Collateral] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 4 class path changes (1 addition, 1 deletion, 2 modifications)
+2026-10-20T14:48:21.933+05:30  INFO 25188 --- [Collateral] [Thread-14] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application COLLATERAL with eureka with status DOWN
+2026-10-20T14:48:21.933+05:30  INFO 25188 --- [Collateral] [Thread-14] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487901933, current=DOWN, previous=UP]
+2026-10-20T14:48:21.933+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:48:21.936+05:30  INFO 25188 --- [Collateral] [Thread-14] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T14:48:21.943+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:48:21.953+05:30  INFO 25188 --- [Collateral] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T14:48:21.959+05:30  INFO 25188 --- [Collateral] [Thread-14] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:48:21.961+05:30  INFO 25188 --- [Collateral] [Thread-14] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown initiated...
+2026-10-20T14:48:21.991+05:30  INFO 25188 --- [Collateral] [Thread-14] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown completed.
+2026-10-20T14:48:21.992+05:30  INFO 25188 --- [Collateral] [Thread-14] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T14:48:24.995+05:30  INFO 25188 --- [Collateral] [Thread-14] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T14:48:25.002+05:30  INFO 25188 --- [Collateral] [Thread-14] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - deregister  status: 200
+2026-10-20T14:48:25.003+05:30  INFO 25188 --- [Collateral] [Thread-14] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2026-10-20T14:48:25.183+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Starting CollateralApplication using Java 25.0.4.1 with PID 25188 (C:\Clear Close\Backend\Collateral\target\classes started by Anusha M in C:\Clear Close\Backend\Collateral)
+2026-10-20T14:48:25.184+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T14:48:25.375+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T14:48:25.389+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 12 ms. Found 2 JPA repository interfaces.
+2026-10-20T14:48:25.445+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=3377f2e8-ae82-361e-aa81-4bbf4dc1a7a7
+2026-10-20T14:48:25.508+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-10-20T14:48:25.508+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T14:48:25.508+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T14:48:25.545+05:30  INFO 25188 --- [Collateral] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 356 ms
+2026-10-20T14:48:25.585+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T14:48:25.605+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T14:48:25.605+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Starting...
+2026-10-20T14:48:25.743+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-4 - Added connection oracle.jdbc.driver.T4CConnection@69785425
+2026-10-20T14:48:25.743+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Start completed.
+2026-10-20T14:48:25.749+05:30  WARN 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T14:48:25.750+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T14:48:25.981+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T14:48:26.347+05:30  INFO 25188 --- [Collateral] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:48:26.481+05:30  WARN 25188 --- [Collateral] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T14:48:26.749+05:30  INFO 25188 --- [Collateral] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T14:48:26.778+05:30  WARN 25188 --- [Collateral] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T14:48:26.820+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T14:48:26.825+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T14:48:26.826+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T14:48:26.826+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T14:48:26.826+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T14:48:26.826+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T14:48:26.826+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T14:48:26.827+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T14:48:26.827+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T14:48:26.827+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T14:48:26.851+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T14:48:26.852+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T14:48:26.853+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T14:48:26.857+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792487906856 with initial instances count: 4
+2026-10-20T14:48:26.859+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application COLLATERAL with eureka with status UP
+2026-10-20T14:48:26.862+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487906862, current=UP, previous=STARTING]
+2026-10-20T14:48:26.863+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:48:26.894+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-10-20T14:48:26.895+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-10-20T14:48:26.896+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:48:26.931+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Started CollateralApplication in 1.835 seconds (process running for 380.148)
+2026-10-20T14:48:26.933+05:30  INFO 25188 --- [Collateral] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T14:48:38.502+05:30  INFO 25188 --- [Collateral] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 1 class path change (0 additions, 0 deletions, 1 modification)
+2026-10-20T14:48:38.506+05:30  INFO 25188 --- [Collateral] [Thread-20] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application COLLATERAL with eureka with status DOWN
+2026-10-20T14:48:38.506+05:30  INFO 25188 --- [Collateral] [Thread-20] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487918506, current=DOWN, previous=UP]
+2026-10-20T14:48:38.508+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:48:38.509+05:30  INFO 25188 --- [Collateral] [Thread-20] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T14:48:38.516+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:48:38.525+05:30  INFO 25188 --- [Collateral] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T14:48:38.530+05:30  INFO 25188 --- [Collateral] [Thread-20] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:48:38.531+05:30  INFO 25188 --- [Collateral] [Thread-20] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown initiated...
+2026-10-20T14:48:38.568+05:30  INFO 25188 --- [Collateral] [Thread-20] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown completed.
+2026-10-20T14:48:38.572+05:30  INFO 25188 --- [Collateral] [Thread-20] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T14:48:41.575+05:30  INFO 25188 --- [Collateral] [Thread-20] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T14:48:41.589+05:30  INFO 25188 --- [Collateral] [Thread-20] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - deregister  status: 200
+2026-10-20T14:48:41.593+05:30  INFO 25188 --- [Collateral] [Thread-20] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2026-10-20T14:48:41.808+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Starting CollateralApplication using Java 25.0.4.1 with PID 25188 (C:\Clear Close\Backend\Collateral\target\classes started by Anusha M in C:\Clear Close\Backend\Collateral)
+2026-10-20T14:48:41.809+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T14:48:42.170+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T14:48:42.204+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 31 ms. Found 2 JPA repository interfaces.
+2026-10-20T14:48:42.341+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=3377f2e8-ae82-361e-aa81-4bbf4dc1a7a7
+2026-10-20T14:48:42.473+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-10-20T14:48:42.475+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T14:48:42.475+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T14:48:42.549+05:30  INFO 25188 --- [Collateral] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 738 ms
+2026-10-20T14:48:42.611+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T14:48:42.639+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T14:48:42.642+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Starting...
+2026-10-20T14:48:42.845+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-5 - Added connection oracle.jdbc.driver.T4CConnection@71f552f1
+2026-10-20T14:48:42.846+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Start completed.
+2026-10-20T14:48:42.859+05:30  WARN 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T14:48:42.859+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T14:48:42.995+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T14:48:43.397+05:30  INFO 25188 --- [Collateral] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:48:43.554+05:30  WARN 25188 --- [Collateral] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T14:48:43.752+05:30  INFO 25188 --- [Collateral] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T14:48:43.760+05:30  WARN 25188 --- [Collateral] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T14:48:43.785+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T14:48:43.808+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T14:48:43.809+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T14:48:43.809+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T14:48:43.810+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T14:48:43.810+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T14:48:43.810+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T14:48:43.810+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T14:48:43.810+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T14:48:43.810+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T14:48:43.843+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T14:48:43.844+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T14:48:43.845+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T14:48:43.846+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792487923845 with initial instances count: 4
+2026-10-20T14:48:43.848+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application COLLATERAL with eureka with status UP
+2026-10-20T14:48:43.849+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487923849, current=UP, previous=STARTING]
+2026-10-20T14:48:43.849+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:48:43.867+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:48:43.872+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-10-20T14:48:43.873+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-10-20T14:48:43.888+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Started CollateralApplication in 2.15 seconds (process running for 397.105)
+2026-10-20T14:48:43.889+05:30  INFO 25188 --- [Collateral] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T14:49:33.771+05:30  INFO 25188 --- [Collateral] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 1 class path change (0 additions, 0 deletions, 1 modification)
+2026-10-20T14:49:33.773+05:30  INFO 25188 --- [Collateral] [Thread-26] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application COLLATERAL with eureka with status DOWN
+2026-10-20T14:49:33.774+05:30  INFO 25188 --- [Collateral] [Thread-26] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487973774, current=DOWN, previous=UP]
+2026-10-20T14:49:33.774+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:49:33.777+05:30  INFO 25188 --- [Collateral] [Thread-26] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T14:49:33.783+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:49:33.785+05:30  INFO 25188 --- [Collateral] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T14:49:33.789+05:30  INFO 25188 --- [Collateral] [Thread-26] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:49:33.790+05:30  INFO 25188 --- [Collateral] [Thread-26] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown initiated...
+2026-10-20T14:49:33.812+05:30  INFO 25188 --- [Collateral] [Thread-26] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown completed.
+2026-10-20T14:49:33.812+05:30  INFO 25188 --- [Collateral] [Thread-26] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T14:49:36.814+05:30  INFO 25188 --- [Collateral] [Thread-26] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T14:49:36.826+05:30  INFO 25188 --- [Collateral] [Thread-26] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - deregister  status: 200
+2026-10-20T14:49:36.828+05:30  INFO 25188 --- [Collateral] [Thread-26] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2026-10-20T14:49:37.007+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Starting CollateralApplication using Java 25.0.4.1 with PID 25188 (C:\Clear Close\Backend\Collateral\target\classes started by Anusha M in C:\Clear Close\Backend\Collateral)
+2026-10-20T14:49:37.008+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T14:49:37.321+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T14:49:37.363+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 40 ms. Found 2 JPA repository interfaces.
+2026-10-20T14:49:37.496+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=3377f2e8-ae82-361e-aa81-4bbf4dc1a7a7
+2026-10-20T14:49:37.631+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-10-20T14:49:37.631+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T14:49:37.631+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T14:49:37.679+05:30  INFO 25188 --- [Collateral] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 667 ms
+2026-10-20T14:49:37.736+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T14:49:37.753+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T14:49:37.754+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Starting...
+2026-10-20T14:49:37.912+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-6 - Added connection oracle.jdbc.driver.T4CConnection@46ff81d3
+2026-10-20T14:49:37.912+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Start completed.
+2026-10-20T14:49:37.928+05:30  WARN 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T14:49:37.930+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T14:49:38.070+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T14:49:38.344+05:30  INFO 25188 --- [Collateral] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:49:38.448+05:30  WARN 25188 --- [Collateral] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T14:49:38.568+05:30  INFO 25188 --- [Collateral] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T14:49:38.574+05:30  WARN 25188 --- [Collateral] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T14:49:38.587+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T14:49:38.588+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T14:49:38.588+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T14:49:38.589+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T14:49:38.601+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T14:49:38.601+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T14:49:38.601+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T14:49:38.601+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792487978601 with initial instances count: 4
+2026-10-20T14:49:38.603+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application COLLATERAL with eureka with status UP
+2026-10-20T14:49:38.603+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487978603, current=UP, previous=STARTING]
+2026-10-20T14:49:38.603+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:49:38.613+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-10-20T14:49:38.613+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-10-20T14:49:38.616+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:49:38.622+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Started CollateralApplication in 1.684 seconds (process running for 451.84)
+2026-10-20T14:49:38.624+05:30  INFO 25188 --- [Collateral] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T14:49:39.954+05:30  INFO 25188 --- [Collateral] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 1 class path change (0 additions, 0 deletions, 1 modification)
+2026-10-20T14:49:39.958+05:30  INFO 25188 --- [Collateral] [Thread-32] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application COLLATERAL with eureka with status DOWN
+2026-10-20T14:49:39.959+05:30  INFO 25188 --- [Collateral] [Thread-32] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487979959, current=DOWN, previous=UP]
+2026-10-20T14:49:39.959+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:49:39.960+05:30  INFO 25188 --- [Collateral] [Thread-32] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T14:49:39.964+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:49:39.973+05:30  INFO 25188 --- [Collateral] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T14:49:39.976+05:30  INFO 25188 --- [Collateral] [Thread-32] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:49:39.977+05:30  INFO 25188 --- [Collateral] [Thread-32] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown initiated...
+2026-10-20T14:49:39.995+05:30  INFO 25188 --- [Collateral] [Thread-32] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown completed.
+2026-10-20T14:49:39.996+05:30  INFO 25188 --- [Collateral] [Thread-32] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T14:49:42.997+05:30  INFO 25188 --- [Collateral] [Thread-32] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T14:49:43.003+05:30  INFO 25188 --- [Collateral] [Thread-32] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - deregister  status: 200
+2026-10-20T14:49:43.003+05:30  INFO 25188 --- [Collateral] [Thread-32] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2026-10-20T14:49:43.132+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Starting CollateralApplication using Java 25.0.4.1 with PID 25188 (C:\Clear Close\Backend\Collateral\target\classes started by Anusha M in C:\Clear Close\Backend\Collateral)
+2026-10-20T14:49:43.134+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-10-20T14:49:43.376+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-20T14:49:43.406+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 27 ms. Found 2 JPA repository interfaces.
+2026-10-20T14:49:43.599+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.cloud.context.scope.GenericScope     : BeanFactory id=3377f2e8-ae82-361e-aa81-4bbf4dc1a7a7
+2026-10-20T14:49:43.763+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-10-20T14:49:43.764+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-20T14:49:43.764+05:30  INFO 25188 --- [Collateral] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-20T14:49:43.880+05:30  INFO 25188 --- [Collateral] [restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 738 ms
+2026-10-20T14:49:44.003+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-20T14:49:44.051+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-20T14:49:44.053+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Starting...
+2026-10-20T14:49:44.175+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-7 - Added connection oracle.jdbc.driver.T4CConnection@2d6e95e9
+2026-10-20T14:49:44.175+05:30  INFO 25188 --- [Collateral] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Start completed.
+2026-10-20T14:49:44.181+05:30  WARN 25188 --- [Collateral] [restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-10-20T14:49:44.182+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@//localhost:1521/FREEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 23.26.2
+	Default catalog/schema: undefined/SYSTEM
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-20T14:49:44.351+05:30  INFO 25188 --- [Collateral] [restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-20T14:49:44.591+05:30  INFO 25188 --- [Collateral] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:49:44.832+05:30  WARN 25188 --- [Collateral] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-10-20T14:49:45.159+05:30  INFO 25188 --- [Collateral] [restartedMain] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestClient.
+2026-10-20T14:49:45.186+05:30  WARN 25188 --- [Collateral] [restartedMain] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-10-20T14:49:45.218+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-10-20T14:49:45.228+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-10-20T14:49:45.228+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-10-20T14:49:45.230+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-10-20T14:49:45.230+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-10-20T14:49:45.230+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-10-20T14:49:45.230+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-10-20T14:49:45.231+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-10-20T14:49:45.231+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-10-20T14:49:45.231+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-10-20T14:49:45.283+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-10-20T14:49:45.285+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-10-20T14:49:45.286+05:30  INFO 25188 --- [Collateral] [restartedMain] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-10-20T14:49:45.288+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1792487985288 with initial instances count: 4
+2026-10-20T14:49:45.290+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application COLLATERAL with eureka with status UP
+2026-10-20T14:49:45.290+05:30  INFO 25188 --- [Collateral] [restartedMain] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792487985290, current=UP, previous=STARTING]
+2026-10-20T14:49:45.290+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:49:45.306+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:49:45.306+05:30  INFO 25188 --- [Collateral] [restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-10-20T14:49:45.328+05:30  INFO 25188 --- [Collateral] [restartedMain] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-10-20T14:49:45.353+05:30  INFO 25188 --- [Collateral] [restartedMain] com.clearclose.CollateralApplication     : Started CollateralApplication in 2.266 seconds (process running for 458.57)
+2026-10-20T14:49:45.354+05:30  INFO 25188 --- [Collateral] [restartedMain] .ConditionEvaluationDeltaLoggingListener : Condition evaluation unchanged
+2026-10-20T14:49:45.911+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-20T14:49:45.912+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-10-20T14:49:45.914+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-10-20T14:49:45.959+05:30  WARN 25188 --- [Collateral] [http-nio-8081-exec-1] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [com.clearclose.exception.DuplicateRequestException: An active release request already exists]
+2026-10-20T14:51:13.138+05:30  WARN 25188 --- [Collateral] [http-nio-8081-exec-3] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [com.clearclose.exception.DuplicateRequestException: An active release request already exists]
+2026-10-20T14:51:46.700+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-4] o.a.kafka.common.config.AbstractConfig   : ProducerConfig values: 
+	acks = -1
+	batch.size = 16384
+	bootstrap.servers = [localhost:9092]
+	buffer.memory = 33554432
+	client.dns.lookup = use_all_dns_ips
+	client.id = Collateral-producer-1
+	compression.gzip.level = -1
+	compression.lz4.level = 9
+	compression.type = none
+	compression.zstd.level = 3
+	config.providers = []
+	connections.max.idle.ms = 540000
+	delivery.timeout.ms = 120000
+	enable.idempotence = true
+	enable.metrics.push = true
+	interceptor.classes = []
+	key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+	linger.ms = 5
+	max.block.ms = 60000
+	max.in.flight.requests.per.connection = 5
+	max.request.size = 1048576
+	metadata.max.age.ms = 300000
+	metadata.max.idle.ms = 300000
+	metadata.recovery.rebootstrap.trigger.ms = 300000
+	metadata.recovery.strategy = rebootstrap
+	metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partitioner.adaptive.partitioning.enable = true
+	partitioner.availability.timeout.ms = 0
+	partitioner.class = null
+	partitioner.ignore.keys = false
+	receive.buffer.bytes = 32768
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retries = 2147483647
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.assertion.algorithm = RS256
+	sasl.oauthbearer.assertion.claim.aud = null
+	sasl.oauthbearer.assertion.claim.exp.seconds = 300
+	sasl.oauthbearer.assertion.claim.iss = null
+	sasl.oauthbearer.assertion.claim.jti.include = false
+	sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+	sasl.oauthbearer.assertion.claim.sub = null
+	sasl.oauthbearer.assertion.file = null
+	sasl.oauthbearer.assertion.private.key.file = null
+	sasl.oauthbearer.assertion.private.key.passphrase = null
+	sasl.oauthbearer.assertion.template.file = null
+	sasl.oauthbearer.client.credentials.client.id = null
+	sasl.oauthbearer.client.credentials.client.secret = null
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = []
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+	sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+	sasl.oauthbearer.scope = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = []
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	transaction.timeout.ms = 60000
+	transaction.two.phase.commit.enable = false
+	transactional.id = null
+	value.serializer = class org.springframework.kafka.support.serializer.JacksonJsonSerializer
+
+2026-10-20T14:51:46.701+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-4] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+2026-10-20T14:51:46.707+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-4] o.a.k.clients.producer.KafkaProducer     : [Producer clientId=Collateral-producer-1] Instantiated an idempotent producer.
+2026-10-20T14:51:46.729+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-4] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 4.2.1
+2026-10-20T14:51:46.730+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-4] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 92f61c44867f39dc
+2026-10-20T14:51:46.730+05:30  INFO 25188 --- [Collateral] [http-nio-8081-exec-4] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1792488106729
+2026-10-20T14:51:46.739+05:30  INFO 25188 --- [Collateral] [kafka-producer-network-thread | Collateral-producer-1] org.apache.kafka.clients.Metadata        : [Producer clientId=Collateral-producer-1] Cluster ID: 7NRypFmjQPm7jFam5cAHrA
+2026-10-20T14:51:46.740+05:30  INFO 25188 --- [Collateral] [kafka-producer-network-thread | Collateral-producer-1] o.a.k.c.p.internals.TransactionManager   : [Producer clientId=Collateral-producer-1] ProducerId set to 4 with epoch 0
+2026-10-20T14:51:46.848+05:30  INFO 25188 --- [Collateral] [kafka-producer-network-thread | Collateral-producer-1] c.c.audit.CollateralAuditPublisher       : Published audit event COLLATERAL_REQUESTED for collateral release request 24
+2026-10-20T14:52:29.067+05:30 ERROR 25188 --- [Collateral] [http-nio-8081-exec-5] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: java.lang.NullPointerException: Cannot invoke "org.springframework.security.core.Authentication.getName()" because "authentication" is null] with root cause
+
+java.lang.NullPointerException: Cannot invoke "org.springframework.security.core.Authentication.getName()" because "authentication" is null
+	at com.clearclose.controller.CollateralReleaseController.submitRequest(CollateralReleaseController.java:32) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:252) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:184) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:934) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:853) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:86) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:866) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1000) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:903) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:649) ~[tomcat-embed-core-11.0.24.jar:6.1]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:874) ~[spring-webmvc-7.0.9.jar:7.0.9]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710) ~[tomcat-embed-core-11.0.24.jar:6.1]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:132) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:59) ~[tomcat-embed-websocket-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:199) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-7.0.9.jar:7.0.9]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:535) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:86) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:71) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:347) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:406) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:71) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:1307) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:2036) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:74) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:949) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:483) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:74) ~[tomcat-embed-core-11.0.24.jar:11.0.24]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[na:na]
+
+2026-10-20T14:53:01.598+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-10-20T14:53:01.599+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application COLLATERAL with eureka with status DOWN
+2026-10-20T14:53:01.600+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1792488181600, current=DOWN, previous=UP]
+2026-10-20T14:53:01.600+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081: registering service...
+2026-10-20T14:53:01.600+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-20T14:53:01.608+05:30  INFO 25188 --- [Collateral] [DiscoveryClient-InstanceInfoReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - registration status: 204
+2026-10-20T14:53:01.612+05:30  INFO 25188 --- [Collateral] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-20T14:53:01.614+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.a.k.clients.producer.KafkaProducer     : [Producer clientId=Collateral-producer-1] Closing the Kafka producer with timeoutMillis = 30000 ms.
+2026-10-20T14:53:01.622+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-10-20T14:53:01.623+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-20T14:53:01.623+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.telemetry.internals.ClientTelemetryReporter
+2026-10-20T14:53:01.623+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-10-20T14:53:01.625+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.producer for Collateral-producer-1 unregistered
+2026-10-20T14:53:01.628+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-20T14:53:01.630+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown initiated...
+2026-10-20T14:53:01.655+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown completed.
+2026-10-20T14:53:01.658+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2026-10-20T14:53:04.660+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2026-10-20T14:53:04.679+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_COLLATERAL/anmuthur-GHT6VL4:Collateral:8081 - deregister  status: 200
+2026-10-20T14:53:04.680+05:30  INFO 25188 --- [Collateral] [RMI TCP Connection(28)-127.0.0.1] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
