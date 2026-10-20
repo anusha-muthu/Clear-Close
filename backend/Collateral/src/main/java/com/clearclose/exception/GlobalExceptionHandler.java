@@ -55,6 +55,28 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(
+            ResponseStatusException ex,
+            HttpServletRequest request) {
+
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        String error = status == null
+                ? "Request failed"
+                : status.getReasonPhrase();
+        String message = ex.getReason() == null ? error : ex.getReason();
+
+        ErrorResponse errorDetails = new ErrorResponse(
+                ex.getStatusCode().value(),
+                error,
+                message,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(ex.getStatusCode()).body(errorDetails);
+    }
+
     @org.springframework.web.bind.annotation.ExceptionHandler(org.hibernate.PropertyValueException.class)
     public ResponseEntity<ErrorResponse> handlePropertyValueException(
             org.hibernate.PropertyValueException ex, 

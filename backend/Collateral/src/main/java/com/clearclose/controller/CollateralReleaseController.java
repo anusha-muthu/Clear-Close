@@ -1,9 +1,11 @@
 package com.clearclose.controller;
 
+import com.clearclose.dto.OfficerDecisionRequest;
 import com.clearclose.entity.CollateralReleaseRequests;
 import com.clearclose.service.CollateralReleaseService;
 
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,17 +21,43 @@ public class CollateralReleaseController {
         this.releaseService = releaseService;
     }
 
-    @PostMapping("/create")
-    public CollateralReleaseRequests createRequest(
-            @RequestBody CollateralReleaseRequests request) {
-        return releaseService.createRequest(request);
-    }
-
     @PostMapping("/submit")
     public CollateralReleaseRequests submitRequest(
-            @RequestBody CollateralReleaseRequests request,Authentication authentication) {
-        return releaseService.submitRequest(
-                request, authentication.getName());
+            @RequestBody CollateralReleaseRequests request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long borrowerId = jwt.getClaim("userId");
+        return releaseService.submitRequest(request, borrowerId, jwt.getTokenValue());
+    }
+
+    @GetMapping("/my-requests")
+    public List<CollateralReleaseRequests> getMyRequests(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long borrowerId = jwt.getClaim("userId");
+        return releaseService.getMyRequests(borrowerId);
+    }
+
+    @PatchMapping("/{requestId}/decision")
+    public CollateralReleaseRequests decideRequest(
+            @PathVariable Long requestId,
+            @RequestBody OfficerDecisionRequest body,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long officerId = jwt.getClaim("userId");
+        return releaseService.decideRequest(
+                requestId,
+                officerId,
+                body.getDecision());
+    }
+
+    @PatchMapping("/{requestId}/complete-release")
+    public CollateralReleaseRequests completeRelease(
+            @PathVariable Long requestId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long officerId = jwt.getClaim("userId");
+        return releaseService.completeRelease(requestId, officerId);
     }
 
     // Return all requests, or filter when query parameters are supplied.
@@ -43,11 +71,6 @@ public class CollateralReleaseController {
         }
 
         return releaseService.searchRequests(loanId, status);
-    }
-
-    @GetMapping("/my-requests")
-    public List<CollateralReleaseRequests> getMyRequests( Authentication authentication) {
-        return releaseService.getMyRequests(authentication.getName());
     }
 
     @GetMapping("/{id}")

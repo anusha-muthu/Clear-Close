@@ -4,6 +4,8 @@ import com.clearclose.entity.Collateral;
 import com.clearclose.service.CollateralService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -55,7 +57,9 @@ public class CollateralController {
   }
 
     @GetMapping("/{id}/eligibility")
-    public Map<String, Object> checkEligibility(@PathVariable Long id) {
-    	return collateralService.checkEligibility(id);
+    public Map<String, Object> checkEligibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+	    return collateralService.checkEligibility(id, jwt.getTokenValue());
     }
 }
