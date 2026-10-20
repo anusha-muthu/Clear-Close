@@ -8,6 +8,8 @@ import BorrowerLogin from "./pages/BorrowerLogin";
 import BorrowerDashboard from "./pages/BorrowerDashboard";
 import OfficerLogin from "./pages/OfficerLogin";
 import OfficerDashboard from "./pages/OfficerDashboard";
+import GrievanceDashboard from "./pages/GrievanceDashboard";
+import CollateralReleaseDashboard from "./pages/CollateralReleaseDashboard";
 
 function App() {
   const [route, setRoute] = useState(window.location.hash);
@@ -94,6 +96,34 @@ function App() {
     }
 
     return <OfficerDashboard session={session} onLogout={handleLogout} />;
+  }
+  if (route === "#grievance-dashboard") {
+    return (
+      <>
+        <nav className="border-b p-4">
+          <a href="#home">← Home</a>
+        </nav>
+        <GrievanceDashboard session={session} />
+      </>
+    );
+  }
+
+    if (route === "#collateral-dashboard") {
+    // 1. If not logged in at all, render the login form directly inside this route
+    if (!session?.token) {
+      return <BorrowerLogin onLogin={handleLogin} />;
+    }
+
+    // 2. If logged in, show the authenticated Navbar and Dashboard view instantly
+    return (
+      <div className="min-h-screen bg-white text-[#102018]">
+        <Navbar />
+        <main>
+          <CollateralReleaseDashboard session={session} />
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   return (
