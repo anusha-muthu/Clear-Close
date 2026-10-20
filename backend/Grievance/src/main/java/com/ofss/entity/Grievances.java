@@ -29,24 +29,21 @@ public class Grievances {
 	private LocalDateTime updatedAt;
 	
 	@PrePersist
-    protected void onCreate() {
-        // 1. Force current timestamps if null or during initial creation
-        if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
-        }
-        this.updatedAt = LocalDateTime.now();
+	protected void onCreate() {
+	    if (this.createdAt == null) {
+	        this.createdAt = LocalDateTime.now();
+	    }
+	    this.updatedAt = LocalDateTime.now();
 
-        // 2. Apply default placeholder values specifically for the 'OPEN' status
-        if ("OPEN".equalsIgnoreCase(this.status)) {
-            if (this.assignedTo == null) {
-                this.assignedTo = 0L; // Use 0 or a specific default system User ID
-            }
-            if (this.resolutionRemarks == null || this.resolutionRemarks.trim().isEmpty()) {
-                this.resolutionRemarks = "Grievance is currently open and awaiting review.";
-            }
-        }
-    }
-
+	    if ("OPEN".equalsIgnoreCase(this.status)) {
+	        if (this.resolutionRemarks == null
+	                || this.resolutionRemarks.trim().isEmpty()) {
+	            this.resolutionRemarks =
+	                    "Grievance is currently open and awaiting review.";
+	        }
+	    }
+	}
+	
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();

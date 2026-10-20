@@ -1,10 +1,12 @@
 package com.ofss.service;
 
+import com.ofss.dto.AuditEvent;
 import com.ofss.entity.Grievances;
 import com.ofss.entity.GrievancesHistory;
 import com.ofss.repository.GrievancesRepository;
 import com.ofss.repository.GrievancesHistoryRepository;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ public class GrievanceService {
 
     private final GrievancesRepository grievanceRepository;
     private final GrievancesHistoryRepository historyRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final Set<String> VALID_STATUSES = Set.of(
         "OPEN", "IN_PROGRESS", "RESOLVED",
@@ -27,9 +30,11 @@ public class GrievanceService {
 
     public GrievanceService(
             GrievancesRepository grievanceRepository,
-            GrievancesHistoryRepository historyRepository) {
+            GrievancesHistoryRepository historyRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.grievanceRepository = grievanceRepository;
         this.historyRepository = historyRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     // --------------------------Submit a new grievance
@@ -49,6 +54,7 @@ public class GrievanceService {
             "Grievance submitted by borrower",
             saved.getBorrowerId()
         );
+        publishAudit(saved, "GRIEVANCE_SUBMITTED");
 
         return saved;
     }
@@ -100,6 +106,7 @@ public class GrievanceService {
             "Assigned to officer " + officerId,
             actionBy
         );
+        publishAudit(saved, "GRIEVANCE_ASSIGNED");
 
         return saved;
     }
@@ -150,6 +157,7 @@ public class GrievanceService {
                 : remarks,
             actionBy
         );
+        publishAudit(saved, "GRIEVANCE_STATUS_CHANGED_TO_" + newStatus);
 
         return saved;
     }
@@ -182,6 +190,20 @@ public class GrievanceService {
                 .findByStatusNotInAndCreatedAtBefore(
                         List.of("RESOLVED", "CLOSED"),
                         cutoff);
+    }
+    
+    private void publishAudit(Grievances saved, String action) {
+        eventPublisher.publishEvent(new AuditEvent(
+                null,
+                saved.getBorrowerId(),
+                saved.getAssignedTo(),
+                saved.getGrievanceId(),
+                "GRIEVANCE",
+                action,
+                LocalDateTime.now(),
+                null, null, null, null, null,
+                saved.getGrievanceId(),
+                null));
     }
 
     //------------------- Helper method to insert a history record
