@@ -167,6 +167,12 @@ public class SecurityConfig {
                     "/api/collateral-release/requests/**"
                 ).hasAnyRole("COLLATERAL_OFFICER", "ADMIN")
 
+                // Audit history is restricted to authorized officers
+                .pathMatchers(HttpMethod.GET, "/api/audit/entity/**")
+                .hasAnyRole("ADMIN", "LOAN_CLOSURE_OFFICER")
+                .pathMatchers(HttpMethod.GET, "/api/audit", "/api/audit/user/**")
+                .hasRole("ADMIN")
+
                 // Borrower endpoints
                 .pathMatchers(
                     "/api/borrower/**",
