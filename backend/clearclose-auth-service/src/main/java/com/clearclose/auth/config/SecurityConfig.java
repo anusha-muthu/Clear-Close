@@ -95,8 +95,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-        HttpSecurity http,
-        JwtAuthenticationConverter jwtConverter
+            HttpSecurity http,
+            JwtAuthenticationConverter jwtConverter
     ) throws Exception {
 
         http
@@ -108,6 +108,9 @@ public class SecurityConfig {
                 )
             )
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(
+                    jakarta.servlet.DispatcherType.ERROR
+                ).permitAll()
 
                 .requestMatchers(
                     HttpMethod.POST,
@@ -117,15 +120,15 @@ public class SecurityConfig {
                 ).permitAll()
 
                 .requestMatchers("/api/borrower/**")
-                .hasRole("BORROWER")
+                    .hasRole("BORROWER")
 
                 .requestMatchers("/api/officer/**")
-                .hasAnyRole(
-                    "LOAN_CLOSURE_OFFICER",
-                    "GRIEVANCE_OFFICER",
-                    "COLLATERAL_OFFICER",
-                    "ADMIN"
-                )
+                    .hasAnyRole(
+                        "LOAN_CLOSURE_OFFICER",
+                        "GRIEVANCE_OFFICER",
+                        "COLLATERAL_OFFICER",
+                        "ADMIN"
+                    )
 
                 .anyRequest().authenticated()
             )

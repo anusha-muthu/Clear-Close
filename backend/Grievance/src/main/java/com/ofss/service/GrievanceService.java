@@ -50,7 +50,14 @@ public class GrievanceService {
         grievance.setStatus("OPEN");
         grievance.setResolutionRemarks(null);
         grievance.setAssignedTo(null);
+        if (grievanceRepository.existsByLoanAccountId(
+                grievance.getLoanAccountId())) {
 
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "A grievance already exists for this loan."
+            );
+        } 
         Grievances saved = grievanceRepository.save(grievance);
 
         saveHistory(

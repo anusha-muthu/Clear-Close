@@ -15,12 +15,13 @@ const features = [
     color: "bg-purple-200",
   },
   {
-    number: "03",
-    title: "Grievance Management",
-    description:
-      "Raise complaints, track support tickets, and receive updates from bank officers.",
-    color: "bg-lime-200",
-  },
+  number: "03",
+  title: "Grievance Management",
+  description:
+    "Raise complaints, track support tickets, and receive updates from bank officers.",
+  color: "bg-lime-200",
+  href: "#grievance-dashboard",
+},
   {
     number: "04",
     title: "NOC Generation",
@@ -29,12 +30,14 @@ const features = [
     color: "bg-orange-100",
   },
   {
-    number: "05",
-    title: "Collateral Release",
-    description:
-      "Track the release of pledged assets and vehicle hypothecation after loan closure.",
-    color: "bg-green-200",
-  },
+  number: "05",
+  title: "Collateral Release",
+  description:
+    "Track the release of pledged assets and vehicle hypothecation after loan closure.",
+  color: "bg-green-200",
+  href: "#collateral-dashboard",
+},
+  
 ];
 
 function Features() {
@@ -63,28 +66,30 @@ function Features() {
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {features.map((feature) => (
-          <div
-            key={feature.number}
-            className={`${feature.color} flex min-h-64 flex-col justify-between rounded-2xl border border-black/[0.08] p-8 shadow-[0_10px_28px_rgba(16,32,24,0.08)] transition duration-300 hover:-translate-y-1 hover:border-black/[0.14] hover:shadow-[0_18px_36px_rgba(16,32,24,0.14)]`}
-          >
-            <span className="text-sm font-bold">
-              {feature.number}
-            </span>
+        {features.map((feature) => {
+          const Card = feature.href ? "a" : "div";
 
-            <div>
-              <h3 className="mb-3 text-2xl font-semibold tracking-tight">
-                {feature.title}
-              </h3>
+          return (
+            <Card
+              key={feature.number}
+              {...(feature.href ? { href: feature.href } : {})}
+              className={`${feature.color} flex min-h-64 flex-col justify-between rounded-2xl border border-black/[0.08] p-8 text-inherit no-underline shadow-[0_10px_28px_rgba(16,32,24,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(16,32,24,0.14)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime-700`}
+            >
+              <span className="text-sm font-bold">{feature.number}</span>
 
-              <p className="text-sm leading-7 text-gray-700">
-                {feature.description}
-              </p>
-            </div>
+              <div>
+                <h3 className="mb-3 text-2xl font-semibold tracking-tight">
+                  {feature.title}
+                </h3>
+                <p className="text-sm leading-7 text-gray-700">
+                  {feature.description}
+                </p>
+              </div>
 
-            <span className="self-end text-2xl">↗</span>
-          </div>
-        ))}
+              <span aria-hidden="true" className="self-end text-2xl">↗</span>
+            </Card>
+          );
+        })}
       </div>
     </section>
   );

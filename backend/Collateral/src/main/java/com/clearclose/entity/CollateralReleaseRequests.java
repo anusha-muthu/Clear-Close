@@ -1,52 +1,65 @@
 package com.clearclose.entity;
 
 import java.time.LocalDateTime;
-
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp; // Added for tracking updates
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(name = "COLLATERAL_RELEASE_REQUESTS")
 public class CollateralReleaseRequests {
+
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "REQUEST_ID")
 	private Long requestId;
+
+	@Column(name = "COLLATERAL_ID", nullable = false)
 	private Long collateralId;
+
+	@Column(name = "LOAN_ACCOUNT_ID", nullable = false)
 	private Long loanAccountId;
+
+	@Column(name = "REQUESTED_BY")
 	private Long requestedBy;
+
+	@Column(name = "ASSIGNED_TO")
 	private Long assignedTo;
-	private String status;
+
+	@Column(name = "STATUS", length = 30)
+	private String status = "PENDING";
+
+	@Column(name = "REASON", length = 500)
 	private String reason;
+
+	@Column(name = "EXPECTED_RELEASE_DATE")
 	private LocalDateTime expectedReleaseDate;
+
+	@Column(name = "RELEASED_AT")
 	private LocalDateTime releasedAt;
+
+	@Column(name = "RELEASE_REFERENCE", length = 50)
 	private String releaseReference;
+
+	@Column(name = "CREATED_AT", nullable = false, updatable = false)
+	@CreationTimestamp
 	private LocalDateTime createdAt;
+
+	@Column(name = "UPDATED_AT", nullable = false) // Fixed duplicate column mapping
+	@UpdateTimestamp // Changed from @CreationTimestamp to @UpdateTimestamp
 	private LocalDateTime updatedAt;
 
-	@PrePersist
-	protected void onCreate() {
-		LocalDateTime now = LocalDateTime.now();
-		if (createdAt == null) {
-			createdAt = now;
-		}
-		updatedAt = now;
-	}
-
-	@PreUpdate
-	protected void onUpdate() {
-		updatedAt = LocalDateTime.now();
-	}
-	
-	
+	// Default Constructor
 	public CollateralReleaseRequests() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
-
+	// Parameterized Constructor
 	public CollateralReleaseRequests(Long requestId, Long collateralId, Long loanAccountId, Long requestedBy,
 			Long assignedTo, String status, String reason, LocalDateTime expectedReleaseDate, LocalDateTime releasedAt,
 			String releaseReference, LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -65,136 +78,49 @@ public class CollateralReleaseRequests {
 		this.updatedAt = updatedAt;
 	}
 
+	// Getters and Setters (Fixed Typos to cleanly match fields)
+	public Long getRequestId() { return requestId; }
+	public void setRequestId(Long requestId) { this.requestId = requestId; }
 
-	public Long getRequestId() {
-		return requestId;
-	}
+	public Long getCollateralId() { return collateralId; }
+	public void setCollateralId(Long collateralId) { this.collateralId = collateralId; }
 
+	public Long getLoanAccountId() { return loanAccountId; }
+	public void setLoanAccountId(Long loanAccountId) { this.loanAccountId = loanAccountId; }
 
-	public void setRequestId(Long requestId) {
-		this.requestId = requestId;
-	}
+	public Long getRequestedBy() { return requestedBy; }
+	public void setRequestedBy(Long requestedBy) { this.requestedBy = requestedBy; }
 
+	public Long getAssignedTo() { return assignedTo; }
+	public void setAssignedTo(Long assignedTo) { this.assignedTo = assignedTo; }
 
-	public Long getCollateralId() {
-		return collateralId;
-	}
+	public String getStatus() { return status; }
+	public void setStatus(String status) { this.status = status; }
 
+	public String getReason() { return reason; }
+	public void setReason(String reason) { this.reason = reason; }
 
-	public void setCollateralId(Long collateralId) {
-		this.collateralId = collateralId;
-	}
+	public LocalDateTime getExpectedReleaseDate() { return expectedReleaseDate; }
+	public void setExpectedReleaseDate(LocalDateTime expectedReleaseDate) { this.expectedReleaseDate = expectedReleaseDate; }
 
+	public LocalDateTime getReleasedAt() { return releasedAt; }
+	public void setReleasedAt(LocalDateTime releasedAt) { this.releasedAt = releasedAt; }
 
-	public Long getLoanAccountId() {
-		return loanAccountId;
-	}
+	public String getReleaseReference() { return releaseReference; }
+	public void setReleaseReference(String releaseReference) { this.releaseReference = releaseReference; }
 
+	public LocalDateTime getCreatedAt() { return createdAt; }
+	public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-	public void setLoanAccountId(Long loanAccountId) {
-		this.loanAccountId = loanAccountId;
-	}
-
-
-	public Long getRequestBy() {
-		return requestedBy;
-	}
-
-
-	public void setRequestBy(Long requestBy) {
-		this.requestedBy = requestBy;
-	}
-
-
-	public Long getAssignedTo() {
-		return assignedTo;
-	}
-
-
-	public void setAssignedTo(Long assignedTo) {
-		this.assignedTo = assignedTo;
-	}
-
-
-	public String getStatus() {
-		return status;
-	}
-
-
-	public void setStatus(String status) {
-		this.status = status;
-	}
-
-
-	public String getReason() {
-		return reason;
-	}
-
-
-	public void setReason(String reason) {
-		this.reason = reason;
-	}
-
-
-	public LocalDateTime getExceptedReleaseDate() {
-		return expectedReleaseDate;
-	}
-
-
-	public void setExceptedReleaseDate(LocalDateTime exceptedReleaseDate) {
-		this.expectedReleaseDate = exceptedReleaseDate;
-	}
-
-
-	public LocalDateTime getReleaseAt() {
-		return releasedAt;
-	}
-
-
-	public void setReleaseAt(LocalDateTime releaseAt) {
-		this.releasedAt = releaseAt;
-	}
-
-
-	public String getReleaseReference() {
-		return releaseReference;
-	}
-
-
-	public void setReleaseReference(String releaseReference) {
-		this.releaseReference = releaseReference;
-	}
-
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
+	public LocalDateTime getUpdatedAt() { return updatedAt; }
+	public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
 	@Override
 	public String toString() {
 		return "CollateralReleaseRequests [requestId=" + requestId + ", collateralId=" + collateralId
-				+ ", loanAccountId=" + loanAccountId + ", requestBy=" + requestedBy + ", assignedTo=" + assignedTo
-				+ ", status=" + status + ", reason=" + reason + ", exceptedReleaseDate=" + expectedReleaseDate
-				+ ", releaseAt=" + releasedAt + ", releaseReference=" + releaseReference + ", createdAt=" + createdAt
+				+ ", loanAccountId=" + loanAccountId + ", requestedBy=" + requestedBy + ", assignedTo=" + assignedTo
+				+ ", status=" + status + ", reason=" + reason + ", expectedReleaseDate=" + expectedReleaseDate
+				+ ", releasedAt=" + releasedAt + ", releaseReference=" + releaseReference + ", createdAt=" + createdAt
 				+ ", updatedAt=" + updatedAt + "]";
 	}
-	
-	
-
 }

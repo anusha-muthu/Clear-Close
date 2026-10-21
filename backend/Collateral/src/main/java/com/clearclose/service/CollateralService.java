@@ -141,7 +141,7 @@ public class CollateralService {
                 "message", message
         );
     }
-    
+
     public void assertLoanOwnedByBorrower(
             Long loanId, Long borrowerId, String bearerToken) {
         CollateralLoanResponse loan = loanClient.getByLoanId(loanId, bearerToken);

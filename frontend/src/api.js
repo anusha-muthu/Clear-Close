@@ -13,22 +13,26 @@ async function getErrorMessage(response, fallbackMessage) {
 // Borrower Login
 export async function loginBorrower(username, password) {
   const response = await fetch(
-    `${API_URL}/api/auth/borrower/login`,
+    "http://192.168.1.9:8081/api/auth/borrower/login",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
-        username,
+        username: username.trim(),
         password,
       }),
-    }
+    },
   );
 
   if (!response.ok) {
     throw new Error(
-      await getErrorMessage(response, "Invalid username or password"),
+      await getErrorMessage(
+        response,
+        `Login failed (HTTP ${response.status})`,
+      ),
     );
   }
 
