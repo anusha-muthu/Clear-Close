@@ -20,7 +20,7 @@ public class AuditController {
 
     // View audit history for a particular entity
     @GetMapping("/entity/{entityType}/{entityId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'LOAN_OFFICER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LOAN_CLOSURE_OFFICER')")
     public List<AuditLog> getEntityHistory(
             @PathVariable String entityType,
             @PathVariable Long entityId) {
