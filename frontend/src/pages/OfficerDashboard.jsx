@@ -1,5 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
+import RequestInformation from "../components/RequestInformation";
 
 import {
   getOfficerRequests,
@@ -109,6 +110,13 @@ function OfficerDashboard({ session, onLogout }) {
   const [success, setSuccess] = useState("");
 
   const [refreshCount, setRefreshCount] = useState(0);
+
+  function refreshRequest() {
+    setDecisionResult(null);
+    setSuccess("");
+    setActionError("");
+    setRefreshCount((count) => count + 1);
+  }
 
   // -----------------------------------------
   // 1. FETCH DASHBOARD DATA
@@ -675,6 +683,15 @@ function OfficerDashboard({ session, onLogout }) {
                 </h3>
 
                 <button
+                  type="button"
+                  disabled={detailsLoading || savingDecision || assigning}
+                  onClick={refreshRequest}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                >
+                  Refresh Status
+                </button>
+
+                <button
                   disabled={savingDecision || assigning}
                   onClick={() => {
                     setSelectedId(null);
@@ -745,6 +762,15 @@ function OfficerDashboard({ session, onLogout }) {
                       More information is required for this request.
                     </p>
                   )}
+
+                  <RequestInformation
+                    key={selectedRequest.exitRequestId}
+                    token={session.token}
+                    requestId={selectedRequest.exitRequestId}
+                    status={selectedRequest.status}
+                    officer
+                    onRefresh={refreshRequest}
+                  />
                   {selectedRequest.status === "COMPLETED" && (
                     <p className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">
                       This cooling-off exit request is completed.

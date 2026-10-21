@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import GrievanceDashboard from "./GrievanceDashboard";
 import CollateralReleaseDashboard from "./CollateralReleaseDashboard";
 import SettlementPayment from "../components/SettlementPayment";
+import RequestInformation from "../components/RequestInformation";
 import {
   acceptSettlementQuote,
   checkCoolingOffEligibility,
@@ -127,7 +128,7 @@ const requestStatusLabels = {
 const requestStatusMessages = {
   PENDING: "Your exit request has been submitted and is awaiting review.",
   UNDER_REVIEW: "A bank officer is reviewing your request.",
-  MORE_INFO_REQUIRED: "Additional information is required. Contact the bank or await the information-submission feature.",
+  MORE_INFO_REQUIRED: "The officer needs more information. Read the remarks below and submit your response for review.",
   APPROVED: "Your cooling-off exit request has been approved. Settlement and payment processing are still required.",
   REJECTED: "Your cooling-off exit request was rejected.",
   COMPLETED: "Your cooling-off exit process has been completed.",
@@ -1311,6 +1312,20 @@ function BorrowerDashboard({ session, onLogout }) {
                       {statusMessage}
                     </p>
                   )}
+
+                  <RequestInformation
+                    key={selectedRequestDetails.exitRequestId}
+                    token={session.token}
+                    requestId={selectedRequestDetails.exitRequestId}
+                    status={selectedRequestDetails.status}
+                    onSubmitted={(updated) => {
+                      setSelectedRequestDetails(updated);
+                      setCoolingOffRequests((current) => current.map((request) =>
+                        String(request.exitRequestId) === String(updated.exitRequestId) ? updated : request,
+                      ));
+                      setRequestRefreshCount((count) => count + 1);
+                    }}
+                  />
 
                   <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <DetailField label="Exit Request ID" value={selectedRequestDetails.exitRequestId} />

@@ -2,6 +2,10 @@
 const API_URL = "http://localhost:8080";
 
 // Common API request function
+export function getOfficerInformationHistory(token, requestId) {
+  return apiRequest(`/api/officer/cooling-off/requests/${encodeURIComponent(requestId)}/information-history`, token);
+}
+
 async function apiRequest(path, token, method = "GET", body = null) {
 
   const response = await fetch(`${API_URL}${path}`, {

@@ -264,6 +264,17 @@ export function generateSettlementQuote(token, requestId) {
   );
 }
 
+export function getBorrowerInformationHistory(token, requestId) {
+  return coolingOffQuoteRequest(`/api/cooling-off/requests/${encodeURIComponent(requestId)}/information-history`, token);
+}
+
+export function submitAdditionalInformation(token, requestId, response) {
+  return coolingOffQuoteRequest(`/api/cooling-off/requests/${encodeURIComponent(requestId)}/additional-information`, token, {
+    method: "POST",
+    body: JSON.stringify({ response }),
+  });
+}
+
 export async function getSettlementQuoteByRequest(token, requestId) {
   try {
     return await coolingOffQuoteRequest(
