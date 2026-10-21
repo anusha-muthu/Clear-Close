@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/internal/loanAccounts")
+@RequestMapping({"/internal/loanAccounts", "/api/borrower/loan-accounts"})
 public class LoanAccountController {
 
     private final LoanAccountRepository loanAccountRepository;

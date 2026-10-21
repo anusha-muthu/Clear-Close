@@ -75,7 +75,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/internal/loanAccounts/**")
+                        .requestMatchers(
+                                "/internal/loanAccounts/**",
+                                "/api/borrower/loan-accounts/**")
                         .hasAnyRole("BORROWER", "COLLATERAL_OFFICER", "ADMIN")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth
