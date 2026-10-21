@@ -3,8 +3,12 @@ import jakarta.validation.Valid;
 import com.clearclose.entity.Collateral;
 import com.clearclose.service.CollateralService;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -38,7 +42,18 @@ public class CollateralController {
 
     @GetMapping("/loan/{loanId}")
     public List<Collateral> getCollateralByLoanId(
-            @PathVariable Long loanId) {
+            @PathVariable Long loanId,
+            @AuthenticationPrincipal Jwt jwt) {
+        if ("BORROWER".equals(jwt.getClaimAsString("accountType"))) {
+            Number userId = jwt.getClaim("userId");
+            if (userId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "User ID is missing from the authenticated token");
+            }
+            collateralService.assertLoanOwnedByBorrower(
+                    loanId, userId.longValue(), jwt.getTokenValue());
+        }
         return collateralService.getCollateralByLoanId(loanId);
     }
 
@@ -55,7 +70,9 @@ public class CollateralController {
   }
 
     @GetMapping("/{id}/eligibility")
-    public Map<String, Object> checkEligibility(@PathVariable Long id) {
-    	return collateralService.checkEligibility(id);
+    public Map<String, Object> checkEligibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+	    return collateralService.checkEligibility(id, jwt.getTokenValue());
     }
 }

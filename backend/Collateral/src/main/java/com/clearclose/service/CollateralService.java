@@ -1,6 +1,8 @@
 package com.clearclose.service;
 
 import com.clearclose.entity.Collateral;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import com.clearclose.entity.CollateralReleaseRequests;
 import com.clearclose.exception.ResourceNotFoundException;
 import com.clearclose.repository.CollateralReleaseRepository;
@@ -17,6 +19,15 @@ import java.util.Map;
 
 @Service
 public class CollateralService {
+
+    private static final List<String> ACTIVE_REQUEST_STATUSES = List.of(
+            "PENDING",
+            "UNDER_REVIEW",
+            "INFO_REQUIRED",
+            "APPROVED",
+            "RELEASE_IN_PROGRESS",
+            "RELEASE_DELAYED"
+    );
 
     private final CollateralRepository collateralRepository;
     private final CollateralReleaseRepository collateralReleaseRepository;
@@ -63,21 +74,24 @@ public class CollateralService {
         existing.setCollateralType(updated.getCollateralType());
         existing.setDescription(updated.getDescription());
         existing.setCustodian(updated.getCustodian());
-        existing.setReleaseStatus(updated.getReleaseStatus());
+        // Release status is controlled by the release-request workflow.
 
         return collateralRepository.save(existing);
     }
-    public Map<String, Object> checkEligibility(Long collateralId) {
+    public Map<String, Object> checkEligibility(Long collateralId, String bearerToken) {
 
         Collateral collateral = collateralRepository.findById(collateralId)
                 .orElseThrow(() ->
-                        new RuntimeException("Collateral not found"));
+                        new ResourceNotFoundException(
+                                "Collateral not found: " + collateralId));
 
         CollateralLoanResponse loan =
-                loanClient.getByLoanId(collateral.getLoanAccountId());
+                loanClient.getByLoanId(collateral.getLoanAccountId(), bearerToken);
 
         if (loan == null) {
-            throw new RuntimeException("Loan service returned no loan data");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Loan Account service returned no loan data");
         }
 
         boolean loanClosed =
@@ -96,13 +110,11 @@ public class CollateralService {
         List<CollateralReleaseRequests> existingRequests =
                 collateralReleaseRepository.findByCollateralIdAndStatusIn(
                         collateralId,
-                        List.of("PENDING", "UNDER_REVIEW"));
+                        ACTIVE_REQUEST_STATUSES);
 
-        String requestStatus = existingRequests.stream()
-                .anyMatch(request ->
-                        "UNDER_REVIEW".equalsIgnoreCase(request.getStatus()))
-                ? "UNDER_REVIEW"
-                : existingRequests.isEmpty() ? "NONE" : "PENDING";
+        String requestStatus = existingRequests.isEmpty()
+                ? "NONE"
+                : existingRequests.get(0).getStatus();
 
         boolean canSubmitRequest =
                 eligible && existingRequests.isEmpty();
@@ -110,10 +122,8 @@ public class CollateralService {
         String message;
         if (alreadyReleased) {
             message = "Collateral has already been released";
-        } else if ("UNDER_REVIEW".equals(requestStatus)) {
-            message = "Release request is under review";
-        } else if ("PENDING".equals(requestStatus)) {
-            message = "Release request already submitted and pending review";
+        } else if (!existingRequests.isEmpty()) {
+            message = "A release request is already active (" + requestStatus + ")";
         } else if (!loanClosed) {
             message = "Loan must be closed before collateral release";
         } else if (!fullySettled) {
@@ -127,9 +137,23 @@ public class CollateralService {
                 "loanAccountId", collateral.getLoanAccountId(),
                 "eligible", eligible,
                 "canSubmitRequest", canSubmitRequest,
-//                "requestStatus", requestStatus,
+                "requestStatus", requestStatus,
                 "message", message
         );
+    }
+
+    public void assertLoanOwnedByBorrower(
+            Long loanId, Long borrowerId, String bearerToken) {
+        CollateralLoanResponse loan = loanClient.getByLoanId(loanId, bearerToken);
+
+        if (loan == null
+                || loan.getBorrowerId() == null
+                || !loan.getBorrowerId().equals(borrowerId)) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "This loan does not belong to the authenticated borrower"
+            );
+        }
     }
 
 }

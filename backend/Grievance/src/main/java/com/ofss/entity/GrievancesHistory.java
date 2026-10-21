@@ -18,6 +18,8 @@ public class GrievancesHistory {
 	private String newStatus;
 	private String actionRemarks;
 	private Long actionBy;
+	@Column(name = "ACTOR_TYPE", nullable = false)
+	private String actorType;
 	@Column(name = "ACTION_AT", nullable = false, insertable = false, updatable = false)
 	private LocalDateTime actionAt;
 	public GrievancesHistory() {
@@ -70,6 +72,12 @@ public class GrievancesHistory {
 	}
 	public void setActionBy(Long actionBy) {
 		this.actionBy = actionBy;
+	}
+	public String getActorType() {
+		return actorType;
+	}
+	public void setActorType(String actorType) {
+		this.actorType = actorType;
 	}
 	public LocalDateTime getActionAt() {
 		return actionAt;
