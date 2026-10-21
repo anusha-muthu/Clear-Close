@@ -1,0 +1,194 @@
+# FINAL COOLING-OFF EXIT COMPLETION -- IMPLEMENTATION AND MANUAL VERIFICATION
+# The coding agent only read/edited files. Compilation, startup, HTTP requests,
+# Kafka delivery, Oracle changes and end-to-end tests have NOT been executed.
+# This file supersedes the earlier stage's "do not complete yet" descriptions.
+#
+# CREATED
+# LoanAccount:
+#   .env.example
+#   config/InternalExitSecurityConfig.java
+#   controller/InternalExitController.java
+#   controller/InternalExitErrors.java
+#   service/CoolingOffLoanClosureService.java
+# Exit Service:
+#   completion/LoanAccountClosureClient.java
+#   completion/FinalExitStateService.java
+#   completion/FinalExitCompletionService.java
+#   completion/FinalExitRecovery.java
+#   final-completion-manual.http
+#   final-completion-verification.sql
+# MODIFIED
+# LoanAccount: pom.xml, src/main/resources/application.properties
+# Exit Service: application.properties, .env.example, events/PaymentEventConsumer.java,
+#   events/PaymentConfirmationService.java, events/LoanExitEventProducer.java
+# Frontend: BorrowerDashboard.jsx, components/SettlementPayment.jsx
+# Earlier stage guides/SQL: pointers to the current final-state requirements.
+# No new microservice, DB table/column, user login, Kafka contract or gateway route.
+# Razorpay credentials, borrower/officer signing and Collateral Service are unchanged.
+#
+# SERVICE OWNERSHIP
+# Payment + Exit code live in clearclose-exit-service (8083).
+# LoanAccount (backend/LoanAccount, 8085) owns the LOAN_ACCOUNT closure write.
+# clearclose-loan-service (8090) remains the borrower loan read API; it is not used
+# to write closures. The current services share Oracle, but remote/local updates
+# are deliberately separate transactions, never treated as one distributed commit.
+#
+# FLOW
+# 1. Existing PaymentSucceeded validates against verified PAYMENT, event identity,
+#    exact amount/INR, all workflow relationships and recorded officer approval.
+# 2. PaymentConfirmationService commits PAID + PAYMENT_EVENT_CONFIRMED first.
+# 3. FinalExitCompletionService reads that durable work and calls LoanAccount
+#    WITHOUT holding an Exit Service DB transaction or request/loan row locks.
+# 4. LoanAccount independently verifies SUCCESS/provider/confirmation, PAID quote,
+#    ACCEPTED_AT, officer/DECIDED_AT, amount, relationship IDs and confirmation audit.
+#    In one local transaction it sets LOAN_STATUS=CLOSED, OUTSTANDING_AMOUNT=0,
+#    CLOSURE_DATE=SYSDATE, UPDATED_AT=SYSTIMESTAMP and COOLING_OFF_LOAN_CLOSED audit.
+# 5. Exit Service validates returned IDs/CLOSED/zero/date, and checks Oracle's exact
+#    same-workflow closure marker. Only then does it change APPROVED -> COMPLETED,
+#    preserving officer/decision fields and recording COOLING_OFF_EXIT_COMPLETED.
+# 6. The existing producer persists a stable UUID/UTC time in LOAN_EXIT_EVENT_READY
+#    in that same completion transaction, then sends LoanExitCompleted after commit.
+#    The message key remains loanId. PaymentSucceeded continues to use quoteId.
+# 7. Broker acknowledgement records LOAN_EXIT_EVENT_PUBLISHED in a NEW transaction.
+#    Automatic retries reconstruct the original event identity from the audit log.
+#
+# INTERNAL API / AUTHENTICATION
+# POST http://localhost:8085/api/internal/loans/{loanId}/complete-cooling-off-exit
+# Body: {"paymentId": ..., "quoteId": ..., "exitRequestId": ...}
+# It is NOT routed publicly by Gateway. Browser/user JWTs cannot authorize it.
+# A separate service JWT uses HS256, issuer/sub clearclose-exit-service, audience
+# clearclose-loan-account-internal, role EXIT_SERVICE, expiration 120 seconds.
+# The dedicated high-priority security chain checks this identity only for the
+# internal route. Normal LoanAccount borrower/officer security remains unchanged.
+# A missing/placeholder service secret disables internal authentication, not security.
+# Do not use the borrower JWT signing key as the service key. Never send it to Vite.
+# Local direct HTTP is for this prototype; deployments must protect service traffic
+# and use TLS/secret management. Tokens and service secrets are never logged here.
+#
+# REQUIRED SETUP (perform manually)
+# Generate ONE random secret, at least 32 bytes, and set the SAME value in BOTH
+# LoanAccount and Exit Service Java process/IDE environments:
+#   EXIT_LOAN_SERVICE_SECRET=<your_random_secret>
+# Other Exit Service settings:
+#   LOAN_ACCOUNT_SERVICE_URL=http://localhost:8085
+#   FINAL_EXIT_RETRY_DELAY_MS=30000
+#   FINAL_EXIT_RETRY_BATCH_SIZE=20
+# .env.example is a placeholder reference, not automatically loaded by Spring.
+# In CMD you may generate a random 64-character value manually using:
+#   powershell -NoProfile -Command "[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')"
+# Copy it into the process environment with: set "EXIT_LOAN_SERVICE_SECRET=..."
+# Do not paste actual secrets into tracked files or screenshots.
+#
+# STARTUP (separate CMD windows; adapt Java and repository paths if necessary)
+# Kafka 4.3.1, already formatted -- do not format storage again:
+#   cd /d C:\kafka_2.13-4.3.1
+#   set "JAVA_HOME=C:\jdk25"
+#   set "PATH=%JAVA_HOME%\bin;%PATH%"
+#   set "KAFKA_HEAP_OPTS=-Xms512M -Xmx1G"
+#   bin\windows\kafka-server-start.bat config\server.properties
+# LoanAccount:
+#   cd /d C:\MajorProject\Clear-Close\backend\LoanAccount
+#   set "EXIT_LOAN_SERVICE_SECRET=<same_generated_value>"
+#   mvnw.cmd compile
+#   mvnw.cmd spring-boot:run
+# Exit Service:
+#   cd /d C:\MajorProject\Clear-Close\backend\clearclose-exit-service
+#   set "JAVA_HOME=C:\jdk25"
+#   set "PATH=%JAVA_HOME%\bin;%PATH%"
+#   set "EXIT_LOAN_SERVICE_SECRET=<same_generated_value>"
+#   set "KAFKA_BOOTSTRAP_SERVERS=localhost:9092"
+#   mvnw.cmd compile
+#   mvnw.cmd spring-boot:run
+# LoanAccount targets Java 21; Java 25 can build/run it with the Maven release setting.
+# Keep discovery, auth, API Gateway (8080), loan read service (8090) and frontend running.
+# Rebuild/restart IDE instances instead if that is your usual workflow; do not start
+# duplicate processes on ports 8083 or 8085. No extra completion server is needed.
+#
+# FRESH END-TO-END TEST
+# Use a new genuine Test Mode loan/payment; do not rewrite old financial statuses.
+# Borrower request -> officer APPROVED -> fresh quote accepted before its deadline
+# -> Razorpay test payment -> backend verification SUCCESS -> PaymentSucceeded.
+# Logs should show EXIT_COMPLETED and Published LoanExitCompleted with a stable ID.
+# Execute final-completion-verification.sql for that payment ID.
+# Expected: PAYMENT SUCCESS; quote PAID; loan CLOSED; outstanding 0; closure date set;
+# request COMPLETED; assigned officer/DECIDED_AT preserved; one audit per transition.
+# Borrower: click Refresh Exit Status (or request Refresh Status) to fetch actual
+# request + quote + loans. The details show loan status, outstanding and closure date.
+# Payment SUCCESS alone is not displayed as proof that final loan closure finished.
+#
+# KAFKA INSPECTION (from C:\kafka_2.13-4.3.1, separate CMD)
+#   bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic clearclose.payment.succeeded --from-beginning --property print.key=true
+#   bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic clearclose.loan-exit.completed --from-beginning --property print.key=true
+#   bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic clearclose.payment.succeeded.DLT --from-beginning --property print.headers=true
+#   bin\windows\kafka-consumer-groups.bat --bootstrap-server localhost:9092 --describe --group clearclose-exit-payment-v1
+#
+# FAILURE TESTS / RECOVERY
+# A: Stop LoanAccount, complete a new test payment. Payment stays SUCCESS, quote PAID,
+#    request APPROVED, loan ACTIVE. Existing consumer retries then may use DLT.
+#    The durable PAYMENT_EVENT_CONFIRMED audit remains pending work regardless of
+#    offsets/DLT. Restore LoanAccount; the recovery worker retries automatically.
+# B: Stop Exit Service after LoanAccount commits but before request completion.
+#    The loan is CLOSED, request APPROVED, and matching closure audit persists.
+#    Restart Exit Service; worker calls the same idempotent closure operation,
+#    confirms its existing result and finishes the request without closing again.
+# C: Replay the ORIGINAL valid PaymentSucceeded using kafka-verification.sql's
+#    replay payload. Completed workflows skip the remote call and financial updates.
+#    No duplicate closure/completion/READY audit and no new logical completion UUID.
+# D: Stop Kafka after payment confirmation while LoanAccount is unavailable, then
+#    restore LoanAccount. Recovery can complete the exit even with Kafka down;
+#    LOAN_EXIT_EVENT_READY remains durable. Restart Kafka; the worker retries the
+#    SAME completion UUID/time until publication is acknowledged and saved.
+# E: FAILED/INITIATED/unverified payment, wrong amount, wrong workflow IDs, unaccepted
+#    quote, missing officer decision, PENDING/REJECTED/CANCELLED request: no closure.
+#    Use separate valid test cases/events; do not forge old successful records.
+# F: Borrower/officer/missing JWT to internal endpoint: denied, no DB changes.
+#    Mismatched service secret/audience/issuer or expired service JWT: denied.
+# G: A loan already closed by another workflow: 409; no zeroing or successful exit.
+# H: Repeated successful verify/refresh and duplicate Kafka delivery: existing result.
+#
+# DURABILITY / LIMITATIONS
+# No new tables were needed: existing AUDIT_LOG transitions and request locks provide
+# durable per-workflow identity. LoanAccount and Exit commit separately, so partial
+# states are real and deliberately recoverable. Recovery scans every 30 seconds
+# in bounded batches; it also resumes genuine previously confirmed PAID/APPROVED
+# work on startup. It never manufactures a payment or bypasses officer approval.
+# Permanent auth/config/data problems remain pending and logged until corrected.
+# Monitor these logs and DLT; the scheduler does not make conflicts safe by retrying.
+# Completion publication has a stable READY record until a PUBLISHED acknowledgement.
+# Crash after Kafka accepts but before Oracle saves PUBLISHED can produce duplicate
+# deliveries with the SAME eventId; downstream consumers must deduplicate. This is
+# at-least-once delivery, not exactly-once financial processing or a distributed TX.
+# Do not remove audit history required for deduplication/recovery.
+# The earlier PaymentSucceeded commit-to-publish gap still has the existing manual
+# replay strategy; it was not replaced with a new payment outbox in this task.
+# No automatic collateral release, COLLATERAL writes, release requests or NOC.
+# No old financial records were edited and no real payments were initiated by agent.
+
+@loanAccount = http://localhost:8085
+@gateway = http://localhost:8080
+@borrowerToken = REPLACE_WITH_BORROWER_TOKEN
+@loanId = 4199
+@paymentId = 2
+@quoteId = 2
+@exitRequestId = 1
+
+### Security negative test: a BORROWER token must NOT authorize closure (401/403)
+POST {{loanAccount}}/api/internal/loans/{{loanId}}/complete-cooling-off-exit
+Authorization: Bearer {{borrowerToken}}
+Content-Type: application/json
+
+{"paymentId": {{paymentId}}, "quoteId": {{quoteId}}, "exitRequestId": {{exitRequestId}}}
+
+### Security negative test: no token must NOT authorize closure (401)
+POST {{loanAccount}}/api/internal/loans/{{loanId}}/complete-cooling-off-exit
+Content-Type: application/json
+
+{"paymentId": {{paymentId}}, "quoteId": {{quoteId}}, "exitRequestId": {{exitRequestId}}}
+
+### Reuse current GET APIs to verify actual backend results
+GET {{gateway}}/api/borrower/loans/{{loanId}}
+Authorization: Bearer {{borrowerToken}}
+
+### Actual completed request
+GET {{gateway}}/api/cooling-off/requests/{{exitRequestId}}
+Authorization: Bearer {{borrowerToken}}

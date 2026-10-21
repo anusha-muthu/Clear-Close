@@ -22,7 +22,8 @@ SELECT log_id, user_id, entity_id, entity_type, action, action_time, payment_id,
 FROM audit_log WHERE quote_id = &quote_id AND entity_type = 'PAYMENT'
 ORDER BY log_id;
 
--- After payment: loan ACTIVE, request APPROVED, quote ACCEPTED.
+-- After Kafka confirmation: loan ACTIVE, request APPROVED, quote PAID.
+-- Before event processing: a verified payment's quote can still be ACCEPTED.
 SELECT q.quote_id, q.quote_status, q.total_amount, q.valid_until, q.accepted_at,
        l.loan_id, l.borrower_id, l.loan_reference, l.loan_status,
        c.exit_request_id, c.status AS request_status

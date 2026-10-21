@@ -392,11 +392,21 @@ function BorrowerDashboard({ session, onLogout }) {
     setRefreshingRequestId(key);
     setRequestRefreshErrors((current) => ({ ...current, [key]: "" }));
     try {
-      const latest = await getCoolingOffRequestById(session.token, requestId);
+      const [latest, latestLoans, latestQuote] = await Promise.all([
+        getCoolingOffRequestById(session.token, requestId),
+        getMyLoans(session.token),
+        getSettlementQuoteByRequest(session.token, requestId),
+      ]);
+      if (!Array.isArray(latestLoans)) throw new Error("Invalid loan response from server.");
+      setLoans(latestLoans);
       setCoolingOffRequests((current) => current.map((item) =>
         String(item.exitRequestId) === key ? latest : item,
       ));
-      if (String(selectedRequestId) === key) setSelectedRequestDetails(latest);
+      if (String(selectedRequestId) === key) {
+        setSelectedRequestDetails(latest);
+        setSettlementQuote(latestQuote);
+        setSettlementQuoteLoaded(true);
+      }
     } catch (refreshError) {
       setRequestRefreshErrors((current) => ({ ...current, [key]: refreshError.message }));
     } finally {
@@ -1306,6 +1316,9 @@ function BorrowerDashboard({ session, onLogout }) {
                     <DetailField label="Exit Request ID" value={selectedRequestDetails.exitRequestId} />
                     <DetailField label="Loan ID" value={selectedRequestDetails.loanId} />
                     <DetailField label="Loan Reference" value={selectedRequestDetails.loanReference} />
+                    <DetailField label="Loan Status" value={loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.loanStatus} />
+                    <DetailField label="Outstanding Amount" value={formatQuoteCurrency(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.outstandingAmount)} />
+                    <DetailField label="Closure Date" value={formatDate(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.closureDate)} />
                     <DetailField label="Reason for Exit" value={selectedRequestDetails.reason} />
                     <DetailField label="Request Date" value={formatDate(selectedRequestDetails.requestDate || selectedRequestDetails.createdAt)} />
                     <DetailField label="Cooling-Off Expiry Date" value={formatDate(selectedRequestDetails.expiryDate)} />
@@ -1359,7 +1372,7 @@ function BorrowerDashboard({ session, onLogout }) {
                             This settlement quote has been paid.
                           </p>
                         )}
-                        {quoteStatus === "ACCEPTED" && (
+                        {(quoteStatus === "ACCEPTED" || quoteStatus === "PAID") && (
                           <section className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-950">
                             <h4 className="font-semibold">Settlement Quote Accepted Successfully</h4>
                             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
@@ -1378,6 +1391,7 @@ function BorrowerDashboard({ session, onLogout }) {
                               quoteId={settlementQuote.quoteId}
                               approved={selectedRequestDetails.status === "APPROVED"}
                               username={session.username}
+                              onRefresh={() => handleRefreshRequest(selectedRequestDetails.exitRequestId)}
                             />
                           </section>
                         )}

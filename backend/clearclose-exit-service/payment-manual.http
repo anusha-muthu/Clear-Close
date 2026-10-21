@@ -1,4 +1,6 @@
 # CLEAR CLOSE: RAZORPAY TEST MODE -- MANUAL SETUP AND REQUESTS
+# Final completion now follows confirmed payment; see final-completion-manual.http.
+# Its CLOSED/COMPLETED final states supersede the earlier stage's temporary states.
 # Nothing in this file has been executed by the coding agent.
 #
 # IMPLEMENTATION
@@ -61,7 +63,8 @@
 # details are persisted or logged. Only the public key ID reaches the browser.
 # PAYMENT_DATE is the Oracle time at successful verification; CONFIRMED_AT is
 # the timestamp at that same confirmation, not an asserted provider capture time.
-# Quote remains ACCEPTED, loan ACTIVE, request APPROVED after successful payment.
+# Quote becomes PAID when the Kafka payment consumer confirms the event.
+# Loan remains ACTIVE and request remains APPROVED; see kafka-manual.http.
 # Row locks serialize create/verify/status requests for an owned quote. Existing
 # INITIATED order IDs are reused; SUCCESS cannot start another checkout.
 # A provider order and Oracle cannot share one transaction. An API timeout or DB

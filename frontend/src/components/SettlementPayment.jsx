@@ -34,7 +34,7 @@ const money = (value) => new Intl.NumberFormat("en-IN", {
   style: "currency", currency: "INR",
 }).format(value);
 
-export default function SettlementPayment({ token, quoteId, approved, username }) {
+export default function SettlementPayment({ token, quoteId, approved, username, onRefresh }) {
   const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -67,6 +67,7 @@ export default function SettlementPayment({ token, quoteId, approved, username }
     try {
       const data = await getSettlementPayment(token, quoteId);
       if (mounted.current) setPayment(data);
+      if (data.paymentStatus === "SUCCESS" && mounted.current) await onRefresh?.();
     } catch (err) {
       if (mounted.current) setError(err.message);
     } finally {
@@ -125,6 +126,7 @@ export default function SettlementPayment({ token, quoteId, approved, username }
             try {
               const verified = await verifySettlementPayment(token, response);
               if (mounted.current) setPayment(verified);
+              if (verified.paymentStatus === "SUCCESS" && mounted.current) await onRefresh?.();
               finish();
             } catch (err) {
               finish(new Error(`${err.message} Refresh payment status before attempting another payment.`));
@@ -180,8 +182,14 @@ export default function SettlementPayment({ token, quoteId, approved, username }
           className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold disabled:opacity-50">
           {busy ? "Please wait..." : "Refresh Payment Status"}
         </button>
+        {success && onRefresh && (
+          <button type="button" onClick={onRefresh} disabled={busy || loading}
+            className="rounded-xl border border-green-700 px-4 py-3 text-sm font-semibold text-green-800 disabled:opacity-50">
+            Refresh Exit Status
+          </button>
+        )}
       </div>
-      <p className="mt-3 text-xs text-gray-500">Use Razorpay test payment details only. Payment does not close the loan or complete the exit request.</p>
+      <p className="mt-3 text-xs text-gray-500">Use Razorpay test payment details only. After payment verification, refresh exit status to see the backend-confirmed loan closure and exit completion.</p>
     </section>
   );
 }

@@ -12,6 +12,8 @@ import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.clearclose.exit.events.PaymentEventProducer;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,10 +24,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class PaymentService {
     private final JdbcTemplate jdbc;
     private final RazorpayClient razorpay;
+    private final PaymentEventProducer paymentEvents;
 
-    public PaymentService(JdbcTemplate jdbc, RazorpayClient razorpay) {
+    public PaymentService(JdbcTemplate jdbc, RazorpayClient razorpay, PaymentEventProducer paymentEvents) {
         this.jdbc = jdbc;
         this.razorpay = razorpay;
+        this.paymentEvents = paymentEvents;
     }
 
     private record Quote(long id, BigDecimal amount, String status, String requestStatus,
@@ -157,6 +161,7 @@ public class PaymentService {
             """, id, method, p.id());
         if (changed != 1) throw conflict("Payment state changed; refresh payment status.");
         audit(borrowerId, p, "PAYMENT_VERIFIED");
+        paymentEvents.recordSucceeded(p.id());
         return latest(p.quoteId());
     }
 
