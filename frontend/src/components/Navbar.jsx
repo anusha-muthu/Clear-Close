@@ -112,37 +112,45 @@ function Navbar() {
 
           {loginMenuOpen && (
             <div
-              role="menu"
-              aria-label="Choose login type"
+              // Keep the visual gap inside the hover area so crossing it does not close the menu.
               style={{
-                background: "#fff",
-                border: "1px solid #e3e9e2",
-                borderRadius: "14px",
-                boxShadow: "0 12px 32px rgba(16, 32, 24, 0.14)",
                 minWidth: "190px",
-                padding: "8px",
+                paddingTop: "10px",
                 position: "absolute",
                 left: "50%",
-                top: "calc(100% + 10px)",
+                top: "100%",
                 transform: "translateX(-50%)",
               }}
             >
-              <a
-                href="#borrower-login"
-                role="menuitem"
-                onClick={() => setLoginMenuOpen(false)}
-                style={menuItemStyle}
+              <div
+                role="menu"
+                aria-label="Choose login type"
+                style={{
+                  background: "#fff",
+                  border: "1px solid #e3e9e2",
+                  borderRadius: "14px",
+                  boxShadow: "0 12px 32px rgba(16, 32, 24, 0.14)",
+                  minWidth: "190px",
+                  padding: "8px",
+                }}
               >
-                Borrower
-              </a>
-              <a
-                href="#officer-login"
-                role="menuitem"
-                onClick={() => setLoginMenuOpen(false)}
-                style={menuItemStyle}
-              >
-                Officer
-              </a>
+                <a
+                  href="#borrower-login"
+                  role="menuitem"
+                  onClick={() => setLoginMenuOpen(false)}
+                  style={menuItemStyle}
+                >
+                  Borrower
+                </a>
+                <a
+                  href="#officer-login"
+                  role="menuitem"
+                  onClick={() => setLoginMenuOpen(false)}
+                  style={menuItemStyle}
+                >
+                  Officer
+                </a>
+              </div>
             </div>
           )}
         </div>
