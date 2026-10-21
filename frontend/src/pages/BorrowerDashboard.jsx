@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import GrievanceDashboard from "./GrievanceDashboard";
 import CollateralReleaseDashboard from "./CollateralReleaseDashboard";
+import SettlementPayment from "../components/SettlementPayment";
 import {
   acceptSettlementQuote,
   checkCoolingOffEligibility,
@@ -625,15 +626,15 @@ function BorrowerDashboard({ session, onLogout }) {
             <span>Borrower Account</span>
           </div>
 
-          <button
-            className="logout-button"
-            title="Sign out"
-            onClick={onLogout}
-          >
-            ↗
-          </button>
-
         </div>
+
+        <button
+          type="button"
+          className="officer-logout-button"
+          onClick={onLogout}
+        >
+          Logout
+        </button>
 
       </aside>
 
@@ -708,7 +709,7 @@ function BorrowerDashboard({ session, onLogout }) {
               </p>
 
               <h1>
-                Your Loan Dashboard
+                {activeMenu === "my-loans" ? "My Loans" : "Your Loan Dashboard"}
               </h1>
 
               <p className="dashboard-muted">
@@ -718,10 +719,11 @@ function BorrowerDashboard({ session, onLogout }) {
 
             <button
               className="dashboard-outline-button"
-              onClick={() =>
-                setRefreshCount((count) => count + 1)
-              }
-              disabled={loading}
+              onClick={() => {
+                setRefreshCount((count) => count + 1);
+                setRequestRefreshCount((count) => count + 1);
+              }}
+              disabled={loading || requestListLoading}
             >
               Refresh Loans ↻
             </button>
@@ -769,6 +771,8 @@ function BorrowerDashboard({ session, onLogout }) {
 
               {/* SUMMARY */}
 
+              {activeMenu === "overview" && (
+                <>
               <section className="mt-8 grid gap-5 sm:grid-cols-3">
 
                 <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -849,13 +853,13 @@ function BorrowerDashboard({ session, onLogout }) {
                 </section>
               )}
 
+                </>
+              )}
+
               {/* MY LOANS */}
 
+              {activeMenu === "my-loans" && (
               <section className="mt-10">
-
-                <h2 className="mb-6 text-2xl font-semibold">
-                  My Loans
-                </h2>
 
                 {filteredLoans.length === 0 ? (
                   <p className="rounded-xl bg-white p-6 text-gray-500">
@@ -949,7 +953,17 @@ function BorrowerDashboard({ session, onLogout }) {
                           {requestListLoading ? (
                             <p className="mt-2 text-sm text-gray-500">Loading request status...</p>
                           ) : requestListError ? (
-                            <p role="alert" className="mt-2 text-sm text-red-700">{requestListError}</p>
+                            <>
+                              <p role="alert" className="mt-2 text-sm text-red-700">{requestListError}</p>
+                              <button
+                                type="button"
+                                onClick={() => setRequestRefreshCount((count) => count + 1)}
+                                disabled={requestListLoading}
+                                className="mt-3 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                              >
+                                Retry Request Status
+                              </button>
+                            </>
                           ) : latestRequest ? (
                             <>
                               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
@@ -1109,6 +1123,7 @@ function BorrowerDashboard({ session, onLogout }) {
                 )}
 
               </section>
+              )}
 
             </>
           )}
@@ -1357,8 +1372,13 @@ function BorrowerDashboard({ session, onLogout }) {
                               <p className="text-sm font-medium">Total Accepted Amount</p>
                               <p className="mt-1 text-xl font-bold">{formatQuoteCurrency(settlementQuote.totalAmount)}</p>
                             </div>
-                            <p className="mt-4 text-sm font-semibold">Next Step: Awaiting Payment Integration</p>
-                            <p className="mt-1 text-sm">Your settlement amount has been accepted. Payment processing will be available in a later step.</p>
+                            <SettlementPayment
+                              key={settlementQuote.quoteId}
+                              token={session.token}
+                              quoteId={settlementQuote.quoteId}
+                              approved={selectedRequestDetails.status === "APPROVED"}
+                              username={session.username}
+                            />
                           </section>
                         )}
                         <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

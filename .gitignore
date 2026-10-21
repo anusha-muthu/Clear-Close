@@ -2,3 +2,8 @@
 
 # Ignore application logs
 *.log
+
+# Local credentials (templates contain placeholders only)
+.env
+.env.*
+!.env.example
