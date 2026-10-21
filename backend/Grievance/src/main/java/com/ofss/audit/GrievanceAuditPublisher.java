@@ -4,12 +4,14 @@ import com.ofss.dto.AuditEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
+@ConditionalOnProperty(name = "clearclose.audit.enabled", havingValue = "true")
 public class GrievanceAuditPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(GrievanceAuditPublisher.class);

@@ -40,6 +40,12 @@ public class GrievanceService {
     // --------------------------Submit a new grievance
     @Transactional
     public Grievances submitGrievance(Grievances grievance) {
+        return submitGrievance(grievance, grievance.getBorrowerId(), "BORROWER");
+    }
+
+    @Transactional
+    public Grievances submitGrievance(
+            Grievances grievance, Long actorId, String actorType) {
 
         grievance.setStatus("OPEN");
         grievance.setResolutionRemarks(null);
@@ -52,7 +58,8 @@ public class GrievanceService {
             "NEW",
             "OPEN",
             "Grievance submitted by borrower",
-            saved.getBorrowerId()
+            actorId,
+            actorType
         );
         publishAudit(saved, "GRIEVANCE_SUBMITTED");
 
@@ -92,6 +99,15 @@ public class GrievanceService {
             Long grievanceId,
             Long officerId,
             Long actionBy) {
+        return assignGrievance(grievanceId, officerId, actionBy, "OFFICER");
+    }
+
+    @Transactional
+    public Grievances assignGrievance(
+            Long grievanceId,
+            Long officerId,
+            Long actionBy,
+            String actorType) {
 
         Grievances grievance = getGrievance(grievanceId);
 
@@ -104,7 +120,8 @@ public class GrievanceService {
             grievance.getStatus(),
             grievance.getStatus(),
             "Assigned to officer " + officerId,
-            actionBy
+            actionBy,
+            actorType
         );
         publishAudit(saved, "GRIEVANCE_ASSIGNED");
 
@@ -118,6 +135,16 @@ public class GrievanceService {
             String newStatus,
             String remarks,
             Long actionBy) {
+        return updateStatus(grievanceId, newStatus, remarks, actionBy, "OFFICER");
+    }
+
+    @Transactional
+    public Grievances updateStatus(
+            Long grievanceId,
+            String newStatus,
+            String remarks,
+            Long actionBy,
+            String actorType) {
 
         Grievances grievance = getGrievance(grievanceId);
 
@@ -155,7 +182,8 @@ public class GrievanceService {
             (remarks == null || remarks.isBlank())
                 ? "Status changed to " + newStatus
                 : remarks,
-            actionBy
+            actionBy,
+            actorType
         );
         publishAudit(saved, "GRIEVANCE_STATUS_CHANGED_TO_" + newStatus);
 
@@ -212,7 +240,8 @@ public class GrievanceService {
             String oldStatus,
             String newStatus,
             String remarks,
-            Long actionBy) {
+            Long actionBy,
+            String actorType) {
 
         GrievancesHistory history = new GrievancesHistory();
 
@@ -221,6 +250,7 @@ public class GrievanceService {
         history.setNewStatus(newStatus);
         history.setActionRemarks(remarks);
         history.setActionBy(actionBy);
+        history.setActorType(actorType);
 
         historyRepository.save(history);
     }
