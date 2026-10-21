@@ -62,7 +62,12 @@ public class SecurityConfig {
 
             if ("OFFICER".equals(accountType)
                     && role != null
-                    && List.of("GRIEVANCE_OFFICER", "ADMIN").contains(role)) {
+                    && List.of(
+                            "LOAN_CLOSURE_OFFICER",
+                            "GRIEVANCE_OFFICER",
+                            "COLLATERAL_OFFICER",
+                            "ADMIN"
+                    ).contains(role)) {
                 return List.of(new SimpleGrantedAuthority("ROLE_" + role));
             }
 
@@ -97,22 +102,38 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         .requestMatchers(HttpMethod.POST, "/api/grievances")
                         .hasRole("BORROWER")
                         .requestMatchers(HttpMethod.GET, "/api/grievances/borrower/**")
                         .hasRole("BORROWER")
+
+                        // Broad lists and manual assignment are administrator-only.
                         .requestMatchers(HttpMethod.GET,
                                 "/api/grievances",
-                                "/api/grievances/officer/**",
                                 "/api/grievances/status/**",
                                 "/api/grievances/loan/**",
                                 "/api/grievances/overdue")
-                        .hasAnyRole("GRIEVANCE_OFFICER", "ADMIN")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/grievances/*/assign")
+                        .hasRole("ADMIN")
+
+                        // Controller/service must still check the authenticated
+                        // officer identity and the record's ASSIGNED_TO value.
+                        .requestMatchers(HttpMethod.GET, "/api/grievances/officer/**")
+                        .hasAnyRole(
+                                "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER",
+                                "COLLATERAL_OFFICER", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/grievances/*/status")
+                        .hasAnyRole(
+                                "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER",
+                                "COLLATERAL_OFFICER", "ADMIN")
+
                         .requestMatchers(HttpMethod.GET,
                                 "/api/grievances/*", "/api/grievances/*/history")
-                        .hasAnyRole("BORROWER", "GRIEVANCE_OFFICER", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/grievances/**")
-                        .hasAnyRole("GRIEVANCE_OFFICER", "ADMIN")
+                        .hasAnyRole(
+                                "BORROWER", "LOAN_CLOSURE_OFFICER",
+                                "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt
