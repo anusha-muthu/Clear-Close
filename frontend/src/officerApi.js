@@ -1,18 +1,40 @@
+const API_URL = "http://localhost:8081";
 
-const API_URL = "http://localhost:8080";
+// Portal permissions and dashboard routes.
+// Add matching routes in App.jsx.
+export const OFFICER_PORTALS = {
+  closure: {
+    title: "Loan Closure Officer Login",
+    description: "Manage cooling-off and loan closure requests.",
+    roles: ["LOAN_CLOSURE_OFFICER", "ADMIN"],
+    dashboard: "#officer-dashboard",
+  },
 
-// Common API request function
-async function apiRequest(path, token, method = "GET", body = null) {
+  grievance: {
+    title: "Grievance Officer Login",
+    description: "Manage complaints assigned to you.",
+    roles: [
+      "LOAN_CLOSURE_OFFICER",
+      "GRIEVANCE_OFFICER",
+      "COLLATERAL_OFFICER",
+      "ADMIN",
+    ],
+    dashboard: "#grievance-officer-dashboard",
+  },
 
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  collateral: {
+    title: "Collateral Release Officer Login",
+    description: "Manage collateral release requests.",
+    roles: ["COLLATERAL_OFFICER", "ADMIN"],
+    dashboard: "#collateral-officer-dashboard",
+  },
+};
 
+// -----------------------------------------
+// RESPONSE HANDLING
+// -----------------------------------------
+
+async function readResponse(response, isLogin = false) {
   const text = await response.text();
 
   let data = null;
@@ -20,38 +42,96 @@ async function apiRequest(path, token, method = "GET", body = null) {
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    data = null;
+    // Handle non-JSON error responses below.
   }
 
   if (!response.ok) {
-    let message;
-    if (response.status === 401) {
-      message = "Session expired. Please log in again.";
-    } else if (response.status === 400) {
-      message = "The request contains invalid information.";
-    } else if (response.status === 403) {
-      message = "Access denied. Check officer permissions or self-review restrictions.";
-    } else if (response.status === 404) {
-      message = "The cooling-off request was not found.";
-    } else if (response.status === 409) {
-      message = "The request cannot be updated in its current state or requires further verification.";
-    } else {
-      message = `Request failed (${response.status})`;
-    }
+    const messages = {
+      400: "The request contains invalid information.",
+      401: isLogin
+        ? "Invalid username or password."
+        : "Session expired. Please log in again.",
+      403: isLogin
+        ? "Access denied. Your account may not be active."
+        : "Access denied. Check officer permissions or assignment.",
+      404: isLogin
+        ? "The login endpoint was not found."
+        : "The requested resource was not found.",
+      409: "The request cannot be updated in its current state.",
+      500: "The server encountered an error. Check backend logs.",
+    };
 
-    const error = new Error(data?.message || data?.detail || data?.error || message);
+    const error = new Error(
+      data?.detail ||
+      data?.message ||
+      messages[response.status] ||
+      `Request failed (${response.status}).`
+    );
+
     error.status = response.status;
     throw error;
+  }
+
+  if (text && data === null) {
+    throw new Error("The server returned an invalid JSON response.");
   }
 
   return data;
 }
 
 // -----------------------------------------
-// 1. OFFICER LOGIN
+// COMMON AUTHENTICATED REQUEST
 // -----------------------------------------
 
-export async function loginOfficer(username, password) {
+async function apiRequest(
+  path,
+  token,
+  method = "GET",
+  body = null
+) {
+  if (!token) {
+    throw new Error("Please log in to continue.");
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body !== null
+        ? { "Content-Type": "application/json" }
+        : {}),
+    },
+    ...(body !== null
+      ? { body: JSON.stringify(body) }
+      : {}),
+  });
+
+  return readResponse(response);
+}
+
+// -----------------------------------------
+// OFFICER LOGIN
+// portal: "closure" | "grievance" | "collateral"
+// -----------------------------------------
+
+export async function loginOfficer(
+  username,
+  password,
+  portal = "closure"
+) {
+  const config = Object.hasOwn(OFFICER_PORTALS, portal)
+    ? OFFICER_PORTALS[portal]
+    : null;
+
+  if (!config) {
+    throw new Error("Unknown officer portal.");
+  }
+
+  const normalizedUsername = String(username || "").trim();
+
+  if (!normalizedUsername || !password) {
+    throw new Error("Enter your username and password.");
+  }
 
   const response = await fetch(
     `${API_URL}/api/auth/officer/login`,
@@ -60,29 +140,47 @@ export async function loginOfficer(username, password) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({
+        username: normalizedUsername,
+        password,
+      }),
     }
   );
 
-  if (!response.ok) {
-    throw new Error("Invalid username or password.");
-  }
-
-  const data = await response.json();
+  const data = await readResponse(response, true);
 
   if (
-    !data.token ||
-    data.accountType !== "OFFICER" ||
-    data.role !== "LOAN_CLOSURE_OFFICER"
+    typeof data?.token !== "string" ||
+    !data.token.trim() ||
+    data.accountType !== "OFFICER"
   ) {
-    throw new Error("Only Loan Closure Officers can access this portal.");
+    throw new Error("A valid officer session is required.");
+  }
+
+  if (!config.roles.includes(data.role)) {
+    throw new Error(
+      "Your officer role cannot access this portal."
+    );
   }
 
   return data;
 }
 
+// Validate the session role before choosing a dashboard.
+export function getOfficerDashboard(portal, role) {
+  const config = Object.hasOwn(OFFICER_PORTALS, portal)
+    ? OFFICER_PORTALS[portal]
+    : null;
+
+  if (!config || !config.roles.includes(role)) {
+    throw new Error("Your role cannot access this dashboard.");
+  }
+
+  return config.dashboard;
+}
+
 // -----------------------------------------
-// 2. GET OFFICER REQUESTS
+// COOLING-OFF REQUESTS
 // -----------------------------------------
 
 export function getOfficerRequests(token) {
@@ -92,20 +190,12 @@ export function getOfficerRequests(token) {
   );
 }
 
-// -----------------------------------------
-// 3. GET REQUEST DETAILS
-// -----------------------------------------
-
 export function getOfficerRequestDetails(token, requestId) {
   return apiRequest(
-    `/api/officer/cooling-off/requests/${requestId}`,
+    `/api/officer/cooling-off/requests/${encodeURIComponent(requestId)}`,
     token
   );
 }
-
-// -----------------------------------------
-// 4. GET DASHBOARD SUMMARY
-// -----------------------------------------
 
 export function getOfficerSummary(token) {
   return apiRequest(
@@ -114,21 +204,13 @@ export function getOfficerSummary(token) {
   );
 }
 
-// -----------------------------------------
-// 5. ASSIGN REQUEST
-// -----------------------------------------
-
 export function assignRequest(token, requestId) {
   return apiRequest(
-    `/api/officer/cooling-off/requests/${requestId}/assign`,
+    `/api/officer/cooling-off/requests/${encodeURIComponent(requestId)}/assign`,
     token,
     "PATCH"
   );
 }
-
-// -----------------------------------------
-// 6. OFFICER DECISION - STEP 24
-// -----------------------------------------
 
 export function makeOfficerDecision(
   token,
@@ -136,23 +218,35 @@ export function makeOfficerDecision(
   decision,
   remarks
 ) {
-  const allowedDecisions = ["APPROVED", "REJECTED", "MORE_INFO_REQUIRED"];
+  const allowedDecisions = [
+    "APPROVED",
+    "REJECTED",
+    "MORE_INFO_REQUIRED",
+  ];
+
   const normalizedRemarks = String(remarks || "").trim();
 
   if (!allowedDecisions.includes(decision)) {
     throw new Error("Choose a valid officer decision.");
   }
+
   if (!normalizedRemarks) {
     throw new Error("Decision remarks are required.");
   }
+
   if (normalizedRemarks.length > 1000) {
-    throw new Error("Decision remarks must be 1000 characters or fewer.");
+    throw new Error(
+      "Decision remarks must be 1000 characters or fewer."
+    );
   }
 
   return apiRequest(
-    `/api/officer/cooling-off/requests/${requestId}/decision`,
+    `/api/officer/cooling-off/requests/${encodeURIComponent(requestId)}/decision`,
     token,
     "PATCH",
-    { decision, remarks: normalizedRemarks }
+    {
+      decision,
+      remarks: normalizedRemarks,
+    }
   );
 }

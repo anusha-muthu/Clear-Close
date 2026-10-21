@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import OfficerPortals from "../OfficerPortals";
 const navLinks = [
   { label: "Home", href: "#home" },
   { label: "Our Services", href: "#features" },
@@ -143,13 +143,13 @@ function Navbar() {
                   Borrower
                 </a>
                 <a
-                  href="#officer-login"
+                  href="#officer-portals"
                   role="menuitem"
                   onClick={() => setLoginMenuOpen(false)}
                   style={menuItemStyle}
                 >
                   Officer
-                </a>
+                </a>    
               </div>
             </div>
           )}

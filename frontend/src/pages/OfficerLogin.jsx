@@ -1,8 +1,12 @@
-
 import { useState } from "react";
-import { loginOfficer } from "../officerApi";
+import {
+  loginOfficer,
+  getOfficerDashboard,
+  OFFICER_PORTALS,
+} from "../officerApi";
 
-function OfficerLogin({ onLogin }) {
+function OfficerLogin({ onLogin, portal = "closure" }) {
+  const config = OFFICER_PORTALS[portal];
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -12,31 +16,47 @@ function OfficerLogin({ onLogin }) {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    if (loading) return;
+
     setLoading(true);
     setError("");
 
     try {
-      // Call Auth Service through API Gateway
-      const data = await loginOfficer(username, password);
+      const data = await loginOfficer(
+        username,
+        password,
+        portal
+      );
 
-      // Store authenticated session
-      onLogin(data);
+      const dashboard = getOfficerDashboard(
+        portal,
+        data.role
+      );
 
-      // Redirect to officer dashboard
-      window.location.hash = "#officer-dashboard";
+      await onLogin({ ...data, portal });
 
+      window.location.hash = dashboard;
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Unable to sign in.");
     } finally {
       setLoading(false);
     }
   }
 
+  if (!config) {
+    return (
+      <main className="borrower-login-page">
+        <section className="borrower-login-card">
+          <h1>Unknown officer portal</h1>
+          <a href="#officer-login">Choose a service</a>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="borrower-login-page">
       <section className="borrower-login-card officer-login-card">
-
-        {/* Logo */}
         <a href="#home" className="dashboard-brand">
           <span className="dashboard-brand-mark" />
           Clear<span>Close</span>
@@ -47,23 +67,19 @@ function OfficerLogin({ onLogin }) {
             Bank Employee Portal
           </p>
 
-          <h1>
-            Officer Login
-          </h1>
+          <h1>{config.title}</h1>
 
           <p className="dashboard-muted">
-            Sign in to review and manage cooling-off
-            exit requests.
+            {config.description}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="borrower-login-form">
-
-          {/* Username */}
+        <form
+          onSubmit={handleSubmit}
+          className="borrower-login-form"
+        >
           <div>
-            <label
-              htmlFor="officer-username"
-            >
+            <label htmlFor="officer-username">
               Username
             </label>
 
@@ -71,18 +87,18 @@ function OfficerLogin({ onLogin }) {
               id="officer-username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(event) =>
+                setUsername(event.target.value)
+              }
               autoComplete="username"
               placeholder="Enter officer username"
+              disabled={loading}
               required
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label
-              htmlFor="officer-password"
-            >
+            <label htmlFor="officer-password">
               Password
             </label>
 
@@ -90,35 +106,39 @@ function OfficerLogin({ onLogin }) {
               id="officer-password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
               autoComplete="current-password"
               placeholder="Enter password"
+              disabled={loading}
               required
             />
           </div>
 
-          {/* Error */}
           {error && (
-            <p
-              role="alert"
-              className="login-error"
-            >
+            <p role="alert" className="login-error">
               {error}
             </p>
           )}
 
-          {/* Login Button */}
           <button
             type="submit"
             disabled={loading}
             className="dashboard-primary-button full-width"
           >
-            {loading ? "Logging in..." : "Login as Officer →"}
+            {loading ? "Logging in..." : "Sign in →"}
           </button>
-
         </form>
 
         <div className="officer-login-links">
+          <a
+            href="#officer-login"
+            className="officer-secondary-link"
+          >
+            ← Choose another officer service
+          </a>
+
           <a
             href="#borrower-login"
             className="officer-secondary-link"
@@ -133,7 +153,6 @@ function OfficerLogin({ onLogin }) {
             ← Back to Homepage
           </a>
         </div>
-
       </section>
     </main>
   );
