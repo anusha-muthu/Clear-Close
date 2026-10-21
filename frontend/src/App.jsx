@@ -10,33 +10,17 @@ import BorrowerLogin from "./pages/BorrowerLogin";
 import BorrowerDashboard from "./pages/BorrowerDashboard";
 import OfficerLogin from "./pages/OfficerLogin";
 import OfficerDashboard from "./pages/OfficerDashboard";
+
 import GrievanceDashboard from "./pages/GrievanceDashboard";
+import GrievanceOfficerDashboard from "./pages/GrievanceOfficerDashboard";
 import CollateralReleaseDashboard from "./pages/CollateralReleaseDashboard";
 
-const PORTALS = {
-  closure: {
-    label: "Cooling-off and Loan Closure",
-    login: "#closure-officer-login",
-    dashboard: "#officer-dashboard",
-    roles: ["LOAN_CLOSURE_OFFICER", "ADMIN"],
-  },
-  grievance: {
-    label: "Grievance Management",
-    login: "#grievance-officer-login",
-    dashboard: "#grievance-officer-dashboard",
-    roles: [
-      "LOAN_CLOSURE_OFFICER",
-      "GRIEVANCE_OFFICER",
-      "COLLATERAL_OFFICER",
-      "ADMIN",
-    ],
-  },
-  collateral: {
-    label: "Collateral Release",
-    login: "#collateral-officer-login",
-    dashboard: "#collateral-officer-dashboard",
-    roles: ["COLLATERAL_OFFICER", "ADMIN"],
-  },
+import { OFFICER_PORTALS } from "./officerApi";
+
+const officerLoginRoutes = {
+  closure: "#closure-officer-login",
+  grievance: "#grievance-officer-login",
+  collateral: "#collateral-officer-login",
 };
 
 function Redirect({ to }) {
@@ -45,65 +29,6 @@ function Redirect({ to }) {
   }, [to]);
 
   return null;
-}
-
-function OfficerPortals() {
-  return (
-    <main className="borrower-login-page">
-      <section className="borrower-login-card">
-        <a href="#home" className="dashboard-brand">
-          ClearClose
-        </a>
-
-        <p className="dashboard-eyebrow">
-          Bank Employee Portal
-        </p>
-
-        <h1>Choose your service</h1>
-
-        <div
-          style={{
-            display: "grid",
-            gap: "16px",
-            margin: "24px 0",
-          }}
-        >
-          {Object.entries(PORTALS).map(([key, portal]) => (
-            <a
-              key={key}
-              href={portal.login}
-              className="dashboard-primary-button full-width"
-            >
-              {portal.label}
-            </a>
-          ))}
-        </div>
-
-        <a href="#home">← Back to Homepage</a>
-      </section>
-    </main>
-  );
-}
-
-function OfficerAccessDenied({ onLogout }) {
-  return (
-    <main className="borrower-login-page">
-      <section className="borrower-login-card">
-        <h1>Access denied</h1>
-        <p>Your account cannot access this officer dashboard.</p>
-
-        <a href="#officer-login">Choose another service</a>
-
-        <button
-          type="button"
-          onClick={onLogout}
-          className="dashboard-primary-button full-width"
-        >
-          Sign out
-        </button>
-      </section>
-    </main>
-  );
 }
 
 function App() {
@@ -139,10 +64,10 @@ function App() {
     Boolean(
       session?.token &&
         session.accountType === "OFFICER" &&
-        PORTALS[portal].roles.includes(session.role)
+        OFFICER_PORTALS[portal]?.roles.includes(session.role)
     );
 
-  const handleLogin = (data) => {
+  function handleLogin(data) {
     const userSession = {
       token: data.token,
       username: data.username,
@@ -158,15 +83,15 @@ function App() {
     );
 
     setSession(userSession);
-  };
+  }
 
-  const handleLogout = () => {
+  function handleLogout() {
     sessionStorage.removeItem("clearclose_session");
     setSession(null);
     window.location.hash = "#home";
-  };
+  }
 
-  // Borrower login and main dashboard.
+  // Borrower login.
   if (route === "#borrower-login") {
     return isBorrower ? (
       <Redirect to="#borrower-dashboard" />
@@ -175,6 +100,7 @@ function App() {
     );
   }
 
+  // Borrower dashboard.
   if (route === "#borrower-dashboard") {
     return isBorrower ? (
       <BorrowerDashboard
@@ -186,52 +112,115 @@ function App() {
     );
   }
 
-  // The existing Officer button now opens the service selector.
+  // Officer service selection.
   if (
     route === "#officer-login" ||
     route === "#officer-portals"
   ) {
-    return <OfficerPortals />;
+    return (
+      <main className="borrower-login-page">
+        <section className="borrower-login-card">
+          <a href="#home" className="dashboard-brand">
+            ClearClose
+          </a>
+
+          <p className="dashboard-eyebrow">
+            Bank Employee Portal
+          </p>
+
+          <h1>Choose your service</h1>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "16px",
+              margin: "24px 0",
+            }}
+          >
+            <a
+              href={officerLoginRoutes.closure}
+              className="dashboard-primary-button full-width"
+            >
+              Cooling-off and Loan Closure
+            </a>
+
+            <a
+              href={officerLoginRoutes.grievance}
+              className="dashboard-primary-button full-width"
+            >
+              Grievance Management
+            </a>
+
+            <a
+              href={officerLoginRoutes.collateral}
+              className="dashboard-primary-button full-width"
+            >
+              Collateral Release
+            </a>
+          </div>
+
+          <a href="#home">← Back to Homepage</a>
+        </section>
+      </main>
+    );
   }
 
   // Separate officer login pages.
-  const loginEntry = Object.entries(PORTALS).find(
-    ([, portal]) => portal.login === route
+  const loginEntry = Object.entries(officerLoginRoutes).find(
+    ([, loginRoute]) => loginRoute === route
   );
 
   if (loginEntry) {
-    const [portalKey, portal] = loginEntry;
+    const [portal] = loginEntry;
 
-    if (canAccessPortal(portalKey)) {
-      return <Redirect to={portal.dashboard} />;
+    if (canAccessPortal(portal)) {
+      return (
+        <Redirect to={OFFICER_PORTALS[portal].dashboard} />
+      );
     }
 
     return (
       <OfficerLogin
-        key={portalKey}
-        portal={portalKey}
+        key={portal}
+        portal={portal}
         onLogin={handleLogin}
       />
     );
   }
 
-  // Officer dashboards.
-  const dashboardEntry = Object.entries(PORTALS).find(
-    ([, portal]) => portal.dashboard === route
+  // Officer dashboard routes.
+  const dashboardEntry = Object.entries(OFFICER_PORTALS).find(
+    ([, config]) => config.dashboard === route
   );
 
   if (dashboardEntry) {
-    const [portalKey, portal] = dashboardEntry;
+    const [portal] = dashboardEntry;
 
     if (!session?.token) {
-      return <Redirect to={portal.login} />;
+      return <Redirect to={officerLoginRoutes[portal]} />;
     }
 
-    if (!canAccessPortal(portalKey)) {
-      return <OfficerAccessDenied onLogout={handleLogout} />;
+    if (!canAccessPortal(portal)) {
+      return (
+        <main className="borrower-login-page">
+          <section className="borrower-login-card">
+            <h1>Access denied</h1>
+            <p>Your account cannot access this service.</p>
+
+            <a href="#officer-portals">
+              Choose another service
+            </a>
+
+            <button type="button" onClick={handleLogout}>
+              Sign out
+            </button>
+          </section>
+        </main>
+      );
     }
 
-    if (portalKey === "closure") {
+    // Keep the existing cooling-off dashboard.
+    if (portal === "closure") {
       return (
         <OfficerDashboard
           session={session}
@@ -242,20 +231,18 @@ function App() {
 
     return (
       <>
-        <nav className="border-b p-4">
-          <a href="#officer-login">← Officer services</a>
+        <nav className="flex flex-wrap items-center gap-4 border-b p-4">
+          <a href="#officer-portals">← Officer services</a>
 
-          <span style={{ margin: "0 16px" }}>
-            {session.username}
-          </span>
+          <span>{session.username}</span>
 
           <button type="button" onClick={handleLogout}>
             Sign out
           </button>
         </nav>
 
-        {portalKey === "grievance" ? (
-          <GrievanceDashboard session={session} />
+        {portal === "grievance" ? (
+          <GrievanceOfficerDashboard session={session} />
         ) : (
           <CollateralReleaseDashboard session={session} />
         )}
@@ -263,7 +250,7 @@ function App() {
     );
   }
 
-  // Existing borrower grievance and collateral pages.
+  // Borrower grievance and collateral pages.
   if (
     route === "#grievance-dashboard" ||
     route === "#collateral-dashboard"
@@ -275,7 +262,9 @@ function App() {
     return (
       <>
         <nav className="border-b p-4">
-          <a href="#borrower-dashboard">← Borrower dashboard</a>
+          <a href="#borrower-dashboard">
+            ← Borrower dashboard
+          </a>
         </nav>
 
         {route === "#grievance-dashboard" ? (
@@ -287,6 +276,7 @@ function App() {
     );
   }
 
+  // Homepage.
   return (
     <div className="min-h-screen bg-white text-[#102018]">
       <Navbar />
