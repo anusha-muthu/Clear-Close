@@ -576,4 +576,16 @@ public class NocService {
         return auditRepository
                 .findByNocIdOrderByActionAtDesc(nocId);
     }
+    
+    @Transactional(readOnly = true)
+    public boolean hasAvailableNoc(Long loanId) {
+        return nocRepository
+            .findByLoanIdOrderByVersionNumberDesc(loanId)
+            .stream()
+            .anyMatch(noc ->
+                "AVAILABLE".equals(noc.getNocStatus())
+                    && noc.getFilePath() != null
+                    && !noc.getFilePath().isBlank()
+            );
+    }
 }
