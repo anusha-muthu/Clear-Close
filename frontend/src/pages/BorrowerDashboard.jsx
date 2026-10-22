@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import GrievanceDashboard from "./GrievanceDashboard";
 import CollateralReleaseDashboard from "./CollateralReleaseDashboard";
+import SettlementPayment from "../components/SettlementPayment";
+import RequestInformation from "../components/RequestInformation";
 import {
   acceptSettlementQuote,
   checkCoolingOffEligibility,
@@ -126,7 +128,7 @@ const requestStatusLabels = {
 const requestStatusMessages = {
   PENDING: "Your exit request has been submitted and is awaiting review.",
   UNDER_REVIEW: "A bank officer is reviewing your request.",
-  MORE_INFO_REQUIRED: "Additional information is required. Contact the bank or await the information-submission feature.",
+  MORE_INFO_REQUIRED: "The officer needs more information. Read the remarks below and submit your response for review.",
   APPROVED: "Your cooling-off exit request has been approved. Settlement and payment processing are still required.",
   REJECTED: "Your cooling-off exit request was rejected.",
   COMPLETED: "Your cooling-off exit process has been completed.",
@@ -391,11 +393,21 @@ function BorrowerDashboard({ session, onLogout }) {
     setRefreshingRequestId(key);
     setRequestRefreshErrors((current) => ({ ...current, [key]: "" }));
     try {
-      const latest = await getCoolingOffRequestById(session.token, requestId);
+      const [latest, latestLoans, latestQuote] = await Promise.all([
+        getCoolingOffRequestById(session.token, requestId),
+        getMyLoans(session.token),
+        getSettlementQuoteByRequest(session.token, requestId),
+      ]);
+      if (!Array.isArray(latestLoans)) throw new Error("Invalid loan response from server.");
+      setLoans(latestLoans);
       setCoolingOffRequests((current) => current.map((item) =>
         String(item.exitRequestId) === key ? latest : item,
       ));
-      if (String(selectedRequestId) === key) setSelectedRequestDetails(latest);
+      if (String(selectedRequestId) === key) {
+        setSelectedRequestDetails(latest);
+        setSettlementQuote(latestQuote);
+        setSettlementQuoteLoaded(true);
+      }
     } catch (refreshError) {
       setRequestRefreshErrors((current) => ({ ...current, [key]: refreshError.message }));
     } finally {
@@ -625,15 +637,15 @@ function BorrowerDashboard({ session, onLogout }) {
             <span>Borrower Account</span>
           </div>
 
-          <button
-            className="logout-button"
-            title="Sign out"
-            onClick={onLogout}
-          >
-            ↗
-          </button>
-
         </div>
+
+        <button
+          type="button"
+          className="officer-logout-button"
+          onClick={onLogout}
+        >
+          Logout
+        </button>
 
       </aside>
 
@@ -708,7 +720,7 @@ function BorrowerDashboard({ session, onLogout }) {
               </p>
 
               <h1>
-                Your Loan Dashboard
+                {activeMenu === "my-loans" ? "My Loans" : "Your Loan Dashboard"}
               </h1>
 
               <p className="dashboard-muted">
@@ -718,10 +730,11 @@ function BorrowerDashboard({ session, onLogout }) {
 
             <button
               className="dashboard-outline-button"
-              onClick={() =>
-                setRefreshCount((count) => count + 1)
-              }
-              disabled={loading}
+              onClick={() => {
+                setRefreshCount((count) => count + 1);
+                setRequestRefreshCount((count) => count + 1);
+              }}
+              disabled={loading || requestListLoading}
             >
               Refresh Loans ↻
             </button>
@@ -769,6 +782,8 @@ function BorrowerDashboard({ session, onLogout }) {
 
               {/* SUMMARY */}
 
+              {activeMenu === "overview" && (
+                <>
               <section className="mt-8 grid gap-5 sm:grid-cols-3">
 
                 <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -849,13 +864,13 @@ function BorrowerDashboard({ session, onLogout }) {
                 </section>
               )}
 
+                </>
+              )}
+
               {/* MY LOANS */}
 
+              {activeMenu === "my-loans" && (
               <section className="mt-10">
-
-                <h2 className="mb-6 text-2xl font-semibold">
-                  My Loans
-                </h2>
 
                 {filteredLoans.length === 0 ? (
                   <p className="rounded-xl bg-white p-6 text-gray-500">
@@ -949,7 +964,17 @@ function BorrowerDashboard({ session, onLogout }) {
                           {requestListLoading ? (
                             <p className="mt-2 text-sm text-gray-500">Loading request status...</p>
                           ) : requestListError ? (
-                            <p role="alert" className="mt-2 text-sm text-red-700">{requestListError}</p>
+                            <>
+                              <p role="alert" className="mt-2 text-sm text-red-700">{requestListError}</p>
+                              <button
+                                type="button"
+                                onClick={() => setRequestRefreshCount((count) => count + 1)}
+                                disabled={requestListLoading}
+                                className="mt-3 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                              >
+                                Retry Request Status
+                              </button>
+                            </>
                           ) : latestRequest ? (
                             <>
                               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
@@ -1109,6 +1134,7 @@ function BorrowerDashboard({ session, onLogout }) {
                 )}
 
               </section>
+              )}
 
             </>
           )}
@@ -1287,10 +1313,27 @@ function BorrowerDashboard({ session, onLogout }) {
                     </p>
                   )}
 
+                  <RequestInformation
+                    key={selectedRequestDetails.exitRequestId}
+                    token={session.token}
+                    requestId={selectedRequestDetails.exitRequestId}
+                    status={selectedRequestDetails.status}
+                    onSubmitted={(updated) => {
+                      setSelectedRequestDetails(updated);
+                      setCoolingOffRequests((current) => current.map((request) =>
+                        String(request.exitRequestId) === String(updated.exitRequestId) ? updated : request,
+                      ));
+                      setRequestRefreshCount((count) => count + 1);
+                    }}
+                  />
+
                   <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <DetailField label="Exit Request ID" value={selectedRequestDetails.exitRequestId} />
                     <DetailField label="Loan ID" value={selectedRequestDetails.loanId} />
                     <DetailField label="Loan Reference" value={selectedRequestDetails.loanReference} />
+                    <DetailField label="Loan Status" value={loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.loanStatus} />
+                    <DetailField label="Outstanding Amount" value={formatQuoteCurrency(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.outstandingAmount)} />
+                    <DetailField label="Closure Date" value={formatDate(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.closureDate)} />
                     <DetailField label="Reason for Exit" value={selectedRequestDetails.reason} />
                     <DetailField label="Request Date" value={formatDate(selectedRequestDetails.requestDate || selectedRequestDetails.createdAt)} />
                     <DetailField label="Cooling-Off Expiry Date" value={formatDate(selectedRequestDetails.expiryDate)} />
@@ -1344,7 +1387,7 @@ function BorrowerDashboard({ session, onLogout }) {
                             This settlement quote has been paid.
                           </p>
                         )}
-                        {quoteStatus === "ACCEPTED" && (
+                        {(quoteStatus === "ACCEPTED" || quoteStatus === "PAID") && (
                           <section className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-950">
                             <h4 className="font-semibold">Settlement Quote Accepted Successfully</h4>
                             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
@@ -1357,8 +1400,14 @@ function BorrowerDashboard({ session, onLogout }) {
                               <p className="text-sm font-medium">Total Accepted Amount</p>
                               <p className="mt-1 text-xl font-bold">{formatQuoteCurrency(settlementQuote.totalAmount)}</p>
                             </div>
-                            <p className="mt-4 text-sm font-semibold">Next Step: Awaiting Payment Integration</p>
-                            <p className="mt-1 text-sm">Your settlement amount has been accepted. Payment processing will be available in a later step.</p>
+                            <SettlementPayment
+                              key={settlementQuote.quoteId}
+                              token={session.token}
+                              quoteId={settlementQuote.quoteId}
+                              approved={selectedRequestDetails.status === "APPROVED"}
+                              username={session.username}
+                              onRefresh={() => handleRefreshRequest(selectedRequestDetails.exitRequestId)}
+                            />
                           </section>
                         )}
                         <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

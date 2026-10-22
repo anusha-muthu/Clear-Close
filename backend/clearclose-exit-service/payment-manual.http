@@ -1,0 +1,147 @@
+# CLEAR CLOSE: RAZORPAY TEST MODE -- MANUAL SETUP AND REQUESTS
+# Final completion now follows confirmed payment; see final-completion-manual.http.
+# Its CLOSED/COMPLETED final states supersede the earlier stage's temporary states.
+# Nothing in this file has been executed by the coding agent.
+#
+# IMPLEMENTATION
+# No Payment Service exists in this checkout. Payment functionality is hosted in
+# the existing Exit Service on 8083. Gateway /api/payments/** now routes there.
+# Existing Spring RestClient + JDBC dependencies are reused; no SDK install,
+# duplicate microservice, table, login, Kafka event or schema migration is needed.
+# Schema reference: backend/db/consolidated.db (PAYMENT and AUDIT_LOG).
+# Confirm your live schema matches that file with payment-verification.sql.
+#
+# SETUP (perform manually)
+# 1. In Razorpay Dashboard, select TEST MODE and generate Test API keys.
+#    In payment capture settings, enable automatic capture for test payments.
+#    Do not use Live Mode keys or real payment details.
+# 2. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your Java IDE's Exit Service
+#    run configuration/environment. See .env.example (placeholders only).
+#    Spring does not automatically load .env. Never add these as VITE_ variables.
+# 3. Run the existing discovery/auth/loan/exit/gateway services as usual, using
+#    the project's Java 25 toolchain. From backend/clearclose-exit-service you
+#    can manually run: .\mvnw.cmd spring-boot:run
+#    Exit Service is the payment backend; do not start a new service on 8084.
+#    Restart the gateway to apply its updated route. Keep its JWT signing key
+#    aligned with the existing Auth and Exit Services.
+# 4. From frontend you can manually run: npm.cmd run dev
+#    Use http://localhost:5173 or :5174 (existing gateway CORS allowlist).
+#    No runtime, compilation, lint or database checks have been performed here.
+#
+# POLICY
+# New/reused checkout orders are blocked once VALID_UNTIL has passed, even if
+# QUOTE_STATUS remains ACCEPTED. This was confirmed by the user. Accepted quote
+# data, amounts and expiry are not rewritten. Verification/status reconciliation
+# can record a previously initiated captured payment after that deadline.
+# An already open provider checkout cannot be forcibly revoked by this local
+# deadline policy; do not equate VALID_UNTIL with a Razorpay-side order expiry.
+# Existing acceptance prevents replacing an ACCEPTED quote. If it expires unpaid,
+# quote remediation needs an explicit later business workflow; do not edit the DB
+# to extend a payment deadline as part of this integration.
+#
+# FRONTEND
+# Borrower -> My Loans -> existing exit-request details -> accepted quote.
+# An APPROVED request + backend payable=true displays Pay Settlement Amount.
+# Existing principal/interest/charges/tax/total/reference remain in that panel.
+# Complete a Test Mode checkout using Razorpay's documented test details:
+# https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/
+# Success is displayed only after the backend confirms capture and commits.
+# On cancel/failure, refresh status before retrying. Pending capture blocks a new
+# checkout. Refresh also recovers a lost callback by fetching the stored order's
+# payments through authenticated Razorpay APIs (not a client success claim).
+# No webhook is added in this step; pending captures require a manual refresh.
+#
+# STORAGE / LIMITATIONS
+# INITIATED stores the order and server-derived rupee amount. Failed/cancelled
+# checkout attempts leave that order INITIATED for safe reuse; they never write
+# SUCCESS. The provider remains the source for individual attempt failures.
+# Verified captured payments store actual provider ID, DB confirmation date,
+# method mapping, CONFIRMED_AT and UPDATED_AT, with one PAYMENT_VERIFIED audit.
+# UPI -> UPI, netbanking -> NET_BANKING; card metadata -> DEBIT_CARD/CREDIT_CARD.
+# Unsupported/prepaid/unknown methods or unavailable card metadata leave METHOD
+# NULL (per existing nullable schema), never an invented CHECK value. No card
+# details are persisted or logged. Only the public key ID reaches the browser.
+# PAYMENT_DATE is the Oracle time at successful verification; CONFIRMED_AT is
+# the timestamp at that same confirmation, not an asserted provider capture time.
+# Quote becomes PAID when the Kafka payment consumer confirms the event.
+# Loan remains ACTIVE and request remains APPROVED; see kafka-manual.http.
+# Row locks serialize create/verify/status requests for an owned quote. Existing
+# INITIATED order IDs are reused; SUCCESS cannot start another checkout.
+# A provider order and Oracle cannot share one transaction. An API timeout or DB
+# rollback after order creation can leave an UNPAID orphan Razorpay order; only
+# orders committed in PAYMENT are returned to Checkout. Review orphan orders in
+# Dashboard using receipt quote_<quoteId>. Do not charge them manually.
+# Existing inconsistent/FAILED/REFUNDED/CANCELLED local payment rows require
+# manual review rather than automatic new orders. Refund processing is out of scope.
+#
+# POSTMAN: paste each request into Import > Raw text (replace placeholders), or
+# create requests manually with Bearer Token auth and application/json body.
+# Do not put real tokens, keys or checkout signatures in this tracked file.
+
+@gateway = http://localhost:8080
+@token = REPLACE_WITH_BORROWER_JWT
+@quoteId = 2
+@orderId = order_REPLACE
+@paymentId = pay_REPLACE
+@signature = REPLACE_WITH_ACTUAL_CHECKOUT_SIGNATURE
+
+### 1. Inspect eligibility / recover captured payment (may update PAYMENT)
+POST {{gateway}}/api/payments/quotes/{{quoteId}}/status
+Authorization: Bearer {{token}}
+
+### 2. Create or reuse one test order (amount is never supplied by the browser)
+POST {{gateway}}/api/payments/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"quoteId": {{quoteId}}}
+
+### 3. Verify actual Checkout response; repeat unchanged to check idempotency
+POST {{gateway}}/api/payments/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "razorpayOrderId": "{{orderId}}",
+  "razorpayPaymentId": "{{paymentId}}",
+  "razorpaySignature": "{{signature}}"
+}
+
+### 4. Invalid signature: 400, no SUCCESS or success audit
+POST {{gateway}}/api/payments/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "razorpayOrderId": "{{orderId}}",
+  "razorpayPaymentId": "{{paymentId}}",
+  "razorpaySignature": "0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+### 5. Missing JWT: 401
+POST {{gateway}}/api/payments/orders
+Content-Type: application/json
+
+{"quoteId": {{quoteId}}}
+
+# ADDITIONAL MANUAL SCENARIOS (each needs suitable existing test data)
+# Accepted + approved + active + unexpired: INITIATED; repeat -> same order/id.
+# AVAILABLE quote / unapproved request / inactive loan / expired quote: 409.
+# Bad/missing quote ID: 400; nonexistent or other borrower's quote: 404.
+# Officer JWT: 403; expired/invalid/missing JWT: 401.
+# Supply a correct signature but payment with different order/amount/currency:
+# verification rejected, no SUCCESS. Use actual test provider data; never weaken
+# code verification to force this scenario.
+# Provider authorized/pending capture: remains INITIATED, payable=false; enable
+# auto-capture (or capture manually in Test Dashboard), then refresh -> SUCCESS.
+# Invalid/unconfigured keys: no checkout; provider failure returns 502 or 503.
+# Correct checkout + captured: SUCCESS, one Oracle record, one success audit.
+# Repeat verify/status/order after SUCCESS: same stored success, no new order.
+# Parallel order/verify requests: one stored order/success under row locks.
+# Cancel checkout / choose test bank failure: no success UI or success DB update.
+# Callback lost (close page after provider payment): reopen details and refresh;
+# backend checks Razorpay and reconciles captured funds without another charge.
+# Reload after success: backend-confirmed receipt and no Pay button.
+# Gateway endpoints and direct Exit Service reject unauthorized calls; frontend
+# calls always use gateway:8080, never Exit Service directly.
+# Verify with payment-verification.sql that loan/request states are unchanged.

@@ -1,7 +1,49 @@
 
 const API_URL = "http://localhost:8080";
 
-async function getErrorMessage(response, fallbackMessage) {
+async function paymentRequest(path, token, body) {
+  const response = await fetch(`${API_URL}/api/payments${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, `Payment request failed (HTTP ${response.status}).`));
+  }
+  return response.json();
+}
+
+export function getSettlementPayment(token, quoteId) {
+  return paymentRequest(`/quotes/${encodeURIComponent(quoteId)}/status`, token);
+}
+
+export function createSettlementOrder(token, quoteId) {
+  return paymentRequest("/orders", token, { quoteId });
+}
+
+export function verifySettlementPayment(token, checkoutResponse) {
+  return paymentRequest("/verify", token, {
+    razorpayOrderId: checkoutResponse.razorpay_order_id,
+    razorpayPaymentId: checkoutResponse.razorpay_payment_id,
+    razorpaySignature: checkoutResponse.razorpay_signature,
+  });
+}
+
+async function getErrorMessage(response, fallbackMessage, token) {
+  if (response.status === 401 && token) {
+    // Decode only for the error wording; the backend still validates the JWT.
+    // A 401 can mean a service rejected the signature/issuer, not just expiry.
+    try {
+      const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      const claims = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, "=")));
+      if (Number.isFinite(claims.exp) && claims.exp * 1000 <= Date.now()) {
+        return "Your session has expired. Please log in again.";
+      }
+    } catch {
+      // A malformed token is an authentication failure, not proof of expiry.
+    }
+    return "Unable to authenticate your login with this service. Please retry.";
+  }
   try {
     const body = await response.json();
     return body.message || body.error || body.detail || fallbackMessage;
@@ -58,7 +100,7 @@ export async function getMyLoans(token) {
         ? "You are not allowed to access these loans."
         : "Unable to fetch loans. Please try again.";
 
-    throw new Error(await getErrorMessage(response, fallback));
+    throw new Error(await getErrorMessage(response, fallback, token));
   }
 
   return response.json();
@@ -105,7 +147,7 @@ export async function checkCoolingOffEligibility(token, loanId) {
           ? "Loan or cooling-off eligibility information was not found."
           : "Unable to check cooling-off eligibility. Please try again.";
 
-    throw new Error(await getErrorMessage(response, fallback));
+    throw new Error(await getErrorMessage(response, fallback, token));
   }
 
   return response.json();
@@ -135,7 +177,7 @@ export async function submitCoolingOffRequest(token, loanId, reason) {
               ? "This loan can no longer accept a cooling-off request. Check eligibility and try again."
               : "Unable to submit the cooling-off request. Please try again later.";
 
-    throw new Error(await getErrorMessage(response, fallback));
+    throw new Error(await getErrorMessage(response, fallback, token));
   }
 
   return response.json();
@@ -156,7 +198,7 @@ export async function getMyCoolingOffRequests(token) {
         : response.status === 404
           ? "Cooling-off requests were not found."
           : "Unable to load cooling-off requests. Please try again.";
-    throw new Error(await getErrorMessage(response, fallback));
+    throw new Error(await getErrorMessage(response, fallback, token));
   }
 
   return response.json();
@@ -180,7 +222,7 @@ export async function getCoolingOffRequestById(token, requestId) {
         : response.status === 404
           ? "Cooling-off request was not found."
           : "Unable to load cooling-off request details. Please try again.";
-    throw new Error(await getErrorMessage(response, fallback));
+    throw new Error(await getErrorMessage(response, fallback, token));
   }
 
   return response.json();
@@ -206,7 +248,7 @@ async function coolingOffQuoteRequest(path, token, options = {}) {
           : response.status === 409
             ? "The backend cannot process this quote in its current state."
             : "Unable to load the settlement quote. Please try again.";
-    const error = new Error(await getErrorMessage(response, fallback));
+    const error = new Error(await getErrorMessage(response, fallback, token));
     error.status = response.status;
     throw error;
   }
@@ -220,6 +262,17 @@ export function generateSettlementQuote(token, requestId) {
     token,
     { method: "POST" },
   );
+}
+
+export function getBorrowerInformationHistory(token, requestId) {
+  return coolingOffQuoteRequest(`/api/cooling-off/requests/${encodeURIComponent(requestId)}/information-history`, token);
+}
+
+export function submitAdditionalInformation(token, requestId, response) {
+  return coolingOffQuoteRequest(`/api/cooling-off/requests/${encodeURIComponent(requestId)}/additional-information`, token, {
+    method: "POST",
+    body: JSON.stringify({ response }),
+  });
 }
 
 export async function getSettlementQuoteByRequest(token, requestId) {
