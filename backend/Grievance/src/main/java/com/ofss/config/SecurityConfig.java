@@ -65,6 +65,7 @@ public class SecurityConfig {
                     && List.of(
                             "LOAN_CLOSURE_OFFICER",
                             "GRIEVANCE_OFFICER",
+                            "SENIOR_GRIEVANCE_OFFICER",
                             "COLLATERAL_OFFICER",
                             "ADMIN"
                     ).contains(role)) {
@@ -123,17 +124,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/grievances/officer/**")
                         .hasAnyRole(
                                 "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER",
-                                "COLLATERAL_OFFICER", "ADMIN")
+                                "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER")
+                        
                         .requestMatchers(HttpMethod.PATCH, "/api/grievances/*/status")
                         .hasAnyRole(
                                 "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER",
-                                "COLLATERAL_OFFICER", "ADMIN")
+                                "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER")
 
                         .requestMatchers(HttpMethod.GET,
                                 "/api/grievances/*", "/api/grievances/*/history")
                         .hasAnyRole(
                                 "BORROWER", "LOAN_CLOSURE_OFFICER",
-                                "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN")
+                                "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt
