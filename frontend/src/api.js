@@ -55,7 +55,7 @@ async function getErrorMessage(response, fallbackMessage, token) {
 // Borrower Login
 export async function loginBorrower(username, password) {
   const response = await fetch(
-    `${API_URL}/api/auth/borrower/login`,
+    `http://localhost:8081/api/auth/borrower/login`,
     {
       method: "POST",
       headers: {

@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -30,15 +31,30 @@ public class AuthController {
     public ResponseEntity<AuthResponse> signup(
         @Valid @RequestBody SignupRequest request
     ) {
-        return ResponseEntity.ok(
-            authService.signupBorrower(request)
-        );
+        try {
+            
+
+            return ResponseEntity.ok(
+                authService.signupBorrower(request)
+            );
+        } catch (RuntimeException ex) {
+            org.slf4j.LoggerFactory
+                .getLogger(AuthController.class)
+                .error("Borrower signup failed", ex);
+            throw ex;
+        }
     }
 
     @PostMapping("/borrower/login")
     public ResponseEntity<AuthResponse> borrowerLogin(
         @Valid @RequestBody LoginRequest request
     ) {
+    	boolean matches = new BCryptPasswordEncoder().matches(
+                "priya123",
+                "$2a$10$w6M1t.y3S8hYq7ZkVp2eNuF5mQO3xB9LzGc4uRdJ5fE7aK2iN1vWm"
+            );
+
+            System.out.println("Password matches: " + matches);
         return ResponseEntity.ok(
             authService.loginBorrower(request)
         );
@@ -65,4 +81,5 @@ public class AuthController {
             "role", jwt.getClaimAsString("role")
         );
     }
+    
 }
