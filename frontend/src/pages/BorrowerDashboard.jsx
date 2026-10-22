@@ -70,12 +70,21 @@ function formatDateTime(date) {
 // -----------------------------------------
 
 function formatLoanType(type) {
-  if (!type) return "Loan";
+  if (!type || !String(type).trim()) return "Unspecified Loan Type";
 
-  return type
-    .replaceAll("_", " ")
+  return String(type).trim()
+    .replace(/[_-]+/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function loanTypeKey(type) {
+  return String(type || "").trim().toUpperCase().replace(/[\s-]+/g, "_") || "UNSPECIFIED";
+}
+
+function outstandingPaise(loan) {
+  const amount = Number(loan.outstandingAmount ?? 0);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
 }
 
 // -----------------------------------------
@@ -149,7 +158,7 @@ function RequestStatusBadge({ status }) {
 
 function DetailField({ label, value }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs text-gray-500">
         {label}
       </p>
@@ -171,7 +180,7 @@ function BorrowerDashboard({ session, onLogout }) {
 
   const [loans, setLoans] = useState([]);
 
-  const [selectedLoanId, setSelectedLoanId] = useState(null);
+  const [loanTypeFilter, setLoanTypeFilter] = useState("ALL");
   const [detailsLoanId, setDetailsLoanId] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -520,24 +529,28 @@ function BorrowerDashboard({ session, onLogout }) {
   const totalLoans = loans.length;
 
   const activeLoans = loans.filter(
-    (loan) => loan.loanStatus === "ACTIVE"
+    (loan) => String(loan.loanStatus).trim().toUpperCase() === "ACTIVE"
   ).length;
 
   const totalOutstanding = loans.reduce(
     (sum, loan) =>
-      sum + Number(loan.outstandingAmount || 0),
+      sum + outstandingPaise(loan),
     0
-  );
+  ) / 100;
 
-  // Select active loan first, otherwise first loan
-  const primaryLoan =
-    loans.find((loan) => loan.loanStatus === "ACTIVE") ||
-    loans[0] ||
-    null;
-
-  const selectedLoan =
-    loans.find((loan) => loan.loanId === selectedLoanId) ||
-    primaryLoan;
+  // Derive every group from the product type supplied by the loan API.
+  // No product names, account counts or balances are seeded into this view.
+  const loanTypeGroups = Array.from(loans.reduce((groups, loan) => {
+    const key = loanTypeKey(loan.productType);
+    const group = groups.get(key) || {
+      key, label: formatLoanType(loan.productType), count: 0, activeCount: 0, outstanding: 0,
+    };
+    group.count += 1;
+    if (String(loan.loanStatus).trim().toUpperCase() === "ACTIVE") group.activeCount += 1;
+    group.outstanding += outstandingPaise(loan);
+    groups.set(key, group);
+    return groups;
+  }, new Map()).values()).sort((a, b) => a.label.localeCompare(b.label));
   const detailsLoan = loans.find((loan) => loan.loanId === detailsLoanId);
 
   // -----------------------------------------
@@ -546,15 +559,17 @@ function BorrowerDashboard({ session, onLogout }) {
 
   const filteredLoans = loans.filter((loan) => {
 
-    const keyword = search.toLowerCase();
+    const keyword = search.toLowerCase().trim();
 
-    return (
+    return (loanTypeFilter === "ALL" || loanTypeKey(loan.productType) === loanTypeFilter) && (
       String(loan.loanId).includes(keyword) ||
       String(loan.loanReference || "")
         .toLowerCase()
         .includes(keyword) ||
       String(loan.productType || "")
         .toLowerCase()
+        .includes(keyword) ||
+      formatLoanType(loan.productType).toLowerCase()
         .includes(keyword)
     );
   });
@@ -818,51 +833,32 @@ function BorrowerDashboard({ session, onLogout }) {
 
               </section>
 
-              {/* SELECTED LOAN SUMMARY */}
-
-              {selectedLoan && (
-                <section className="loan-summary-card mt-8">
-
-                  <div>
-                    <p className="dashboard-eyebrow">
-                      Selected Loan
-                    </p>
-
-                    <h2>
-                      {formatLoanType(
-                        selectedLoan.productType
-                      )}
-                    </h2>
-
-                    <p>
-                      Loan ID: {selectedLoan.loanId}
-                    </p>
-
-                    <p>
-                      Reference: {selectedLoan.loanReference}
-                    </p>
-                  </div>
-
-                  <div className="loan-summary-amount">
-                    <span>Outstanding Amount</span>
-
-                    <strong>
-                      {formatCurrency(
-                        selectedLoan.outstandingAmount
-                      )}
-                    </strong>
-                  </div>
-
-                  <div className="loan-summary-action">
-                    <span>Loan Status</span>
-
-                    <LoanStatus
-                      status={selectedLoan.loanStatus}
-                    />
-                  </div>
-
-                </section>
-              )}
+              <section className="mt-8" aria-labelledby="loan-types-heading">
+                <h2 id="loan-types-heading" className="text-xl font-semibold">Loans by Type</h2>
+                <p className="mt-2 text-sm text-gray-600">Account counts and outstanding balances across all your loan accounts.</p>
+                <div className="mt-5 grid gap-5">
+                  {loanTypeGroups.map((group) => (
+                    <article key={group.key} className="loan-summary-card loan-type-summary !mt-0">
+                      <div className="min-w-0">
+                        <p className="dashboard-eyebrow">Loan Type</p>
+                        <h3 className="mt-2 text-2xl font-semibold text-white">{group.label}</h3>
+                        <p className="mt-2">{group.count} total {group.count === 1 ? "loan" : "loans"} · {group.activeCount} active</p>
+                      </div>
+                      <div className="loan-summary-amount min-w-0">
+                        <span>Total Outstanding</span>
+                        <strong>{formatCurrency(group.outstanding / 100)}</strong>
+                      </div>
+                      <div className="loan-summary-action min-w-0">
+                        <button type="button" className="rounded-full border border-white/40 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                          onClick={() => { setLoanTypeFilter(group.key); setSearch(""); setActiveMenu("my-loans"); }}
+                          aria-label={`View ${group.label} accounts`}>
+                          View Accounts →
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
 
                 </>
               )}
@@ -871,6 +867,18 @@ function BorrowerDashboard({ session, onLogout }) {
 
               {activeMenu === "my-loans" && (
               <section className="mt-10">
+
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+                  <p className="text-sm text-gray-600">Showing {filteredLoans.length} of {totalLoans} loan accounts</p>
+                  <label className="flex items-center gap-3 text-sm font-semibold">
+                    Loan Type
+                    <select value={loanTypeFilter} onChange={(event) => setLoanTypeFilter(event.target.value)}
+                      className="rounded-xl border border-gray-300 bg-white px-4 py-2">
+                      <option value="ALL">All Loan Types</option>
+                      {loanTypeGroups.map((group) => <option key={group.key} value={group.key}>{group.label}</option>)}
+                    </select>
+                  </label>
+                </div>
 
                 {filteredLoans.length === 0 ? (
                   <p className="rounded-xl bg-white p-6 text-gray-500">
@@ -1011,7 +1019,6 @@ function BorrowerDashboard({ session, onLogout }) {
 
                         <button
                           onClick={() => {
-                            setSelectedLoanId(loan.loanId);
                             setDetailsLoanId(loan.loanId);
                           }}
                           className="mt-7 w-full rounded-xl bg-black py-3 text-sm font-semibold text-white hover:bg-gray-800"
@@ -1417,7 +1424,7 @@ function BorrowerDashboard({ session, onLogout }) {
                           <DetailField label="Quote Type" value={settlementQuote.quoteType} />
                           <DetailField label="Principal Amount" value={formatQuoteCurrency(settlementQuote.principalAmount)} />
                           <DetailField label="Interest Amount" value={formatQuoteCurrency(settlementQuote.interestAmount)} />
-                          <DetailField label="Charges Amount" value={formatQuoteCurrency(settlementQuote.chargesAmount)} />
+                          <DetailField label="Processing Fee" value={formatQuoteCurrency(settlementQuote.chargesAmount)} />
                           <DetailField label="Tax Amount" value={formatQuoteCurrency(settlementQuote.taxAmount)} />
                           <DetailField label="Quote Generated Date" value={formatDateTime(settlementQuote.createdAt)} />
                           <DetailField label="Valid Until" value={formatDateTime(settlementQuote.validUntil)} />
@@ -1518,7 +1525,7 @@ function BorrowerDashboard({ session, onLogout }) {
               <DetailField label="Quote ID" value={settlementQuote.quoteId} />
               <DetailField label="Principal Amount" value={formatQuoteCurrency(settlementQuote.principalAmount)} />
               <DetailField label="Interest Amount" value={formatQuoteCurrency(settlementQuote.interestAmount)} />
-              <DetailField label="Charges" value={formatQuoteCurrency(settlementQuote.chargesAmount)} />
+              <DetailField label="Processing Fee" value={formatQuoteCurrency(settlementQuote.chargesAmount)} />
               <DetailField label="Tax" value={formatQuoteCurrency(settlementQuote.taxAmount)} />
               <DetailField label="Quote Valid Until" value={formatDateTime(settlementQuote.validUntil)} />
               <div className="rounded-lg bg-lime-100 p-3 sm:col-span-2">
@@ -1608,7 +1615,7 @@ function BorrowerDashboard({ session, onLogout }) {
                   </label>
                   <label className="block text-sm font-medium text-gray-700">
                     Loan Reference
-                    <input readOnly value={requestLoan.loanReference || "N/A"} className="mt-2 w-full rounded-lg border bg-gray-50 px-3 py-2.5 text-gray-700" />
+                    <textarea readOnly rows={2} value={requestLoan.loanReference || "N/A"} className="mt-2 w-full resize-none rounded-lg border bg-gray-50 px-3 py-2.5 text-gray-700" />
                   </label>
                 </div>
                 <label className="block text-sm font-medium text-gray-700">

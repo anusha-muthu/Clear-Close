@@ -47,6 +47,7 @@ public class SettlementQuoteService {
         BigDecimal interestRate,
         LocalDateTime disbursementDate,
         int coolingOffDays,
+        BigDecimal processingFee,
         LocalDateTime requestExpiry,
         LocalDateTime currentTime
     ) {}
@@ -158,6 +159,7 @@ public class SettlementQuoteService {
                 l.INTEREST_RATE,
                 l.DISBURSEMENT_DATE,
                 r.COOLING_OFF_DAYS,
+                r.COOLING_OFF_PROCESSING_FEE,
                 SYSDATE AS CURRENT_DB_TIME
             FROM COOLING_OFF_REQUEST c
             JOIN LOAN_ACCOUNT l
@@ -188,6 +190,8 @@ public class SettlementQuoteService {
                 toDateTime(rs, "DISBURSEMENT_DATE"),
 
                 rs.getInt("COOLING_OFF_DAYS"),
+
+                rs.getBigDecimal("COOLING_OFF_PROCESSING_FEE"),
 
                 toDateTime(rs, "REQUEST_EXPIRY"),
 
@@ -364,8 +368,17 @@ public class SettlementQuoteService {
             RoundingMode.HALF_UP
         );
 
-        // No cooling-off penalty in this demo
-        BigDecimal charges = BigDecimal.ZERO.setScale(2);
+        // Demo policy: one upfront-disclosed processing fee, not previously collected.
+        // This is not an exit penalty; do not reuse regular foreclosure charge rules.
+        // Snapshot the linked product rule's fee; later rule edits cannot reprice a quote.
+        BigDecimal processingFee = request.processingFee();
+        if (processingFee == null || processingFee.signum() < 0
+                || processingFee.stripTrailingZeros().scale() > 2
+                || processingFee.compareTo(new BigDecimal("9999999999999.99")) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "The loan product rule has an invalid cooling-off processing fee. Contact the bank.");
+        }
+        BigDecimal charges = processingFee.setScale(2, RoundingMode.UNNECESSARY);
         BigDecimal tax = BigDecimal.ZERO.setScale(2);
 
         BigDecimal total = principal

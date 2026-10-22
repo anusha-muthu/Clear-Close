@@ -9,3 +9,9 @@ backend/Grievance/mylogs/grievance.log.2026-10-21.0.gz
 .env
 .env.*
 !.env.example
+backend/Grievance/src/main/resources/application.properties
+backend/Grievance/src/main/resources/application.properties
+backend/LoanAccount/src/main/resources/application.properties
+backend/AuditService/src/main/resources/application.properties
+backend/Grievance/mylogs/grievance.log.2026-10-21.0.gz
+backend/clearclose-exit-service/processing-fee-manual.md

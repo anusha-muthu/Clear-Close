@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -49,12 +48,6 @@ public class AuthController {
     public ResponseEntity<AuthResponse> borrowerLogin(
         @Valid @RequestBody LoginRequest request
     ) {
-    	boolean matches = new BCryptPasswordEncoder().matches(
-                "priya123",
-                "$2a$10$w6M1t.y3S8hYq7ZkVp2eNuF5mQO3xB9LzGc4uRdJ5fE7aK2iN1vWm"
-            );
-
-            System.out.println("Password matches: " + matches);
         return ResponseEntity.ok(
             authService.loginBorrower(request)
         );
