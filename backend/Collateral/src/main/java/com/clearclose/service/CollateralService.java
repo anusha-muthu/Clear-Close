@@ -8,6 +8,7 @@ import com.clearclose.exception.ResourceNotFoundException;
 import com.clearclose.repository.CollateralReleaseRepository;
 import com.clearclose.repository.CollateralRepository;
 import com.clearclose.client.LoanAccountClient;
+import com.clearclose.client.NocClient;
 import com.clearclose.dto.CollateralLoanResponse;
 import jakarta.transaction.Transactional;
 
@@ -32,14 +33,16 @@ public class CollateralService {
     private final CollateralRepository collateralRepository;
     private final CollateralReleaseRepository collateralReleaseRepository;
     private final LoanAccountClient loanClient;
+    private final NocClient nocClient;
 
     public List<String> getCollateralTypes() {
     	return List.of("PROPERTY","GOLD","VEHICLE","FIXED_DEPOSIT","OTHER");
     }
 
-    public CollateralService(CollateralRepository collateralRepository,LoanAccountClient loanClient,CollateralReleaseRepository collateralReleaseRepository) {
+    public CollateralService(CollateralRepository collateralRepository,LoanAccountClient loanClient,CollateralReleaseRepository collateralReleaseRepository, NocClient nocClient) {
         this.collateralRepository = collateralRepository;
         this.loanClient=loanClient;
+        this.nocClient = nocClient;
         this.collateralReleaseRepository=collateralReleaseRepository;
     }
 
@@ -95,53 +98,64 @@ public class CollateralService {
         }
 
         boolean loanClosed =
-                "CLOSED".equalsIgnoreCase(loan.getLoanStatus());
+        	    "CLOSED".equalsIgnoreCase(loan.getLoanStatus());
 
-        BigDecimal outstanding = loan.getOutstandingAmount();
+        	BigDecimal outstanding = loan.getOutstandingAmount();
 
-        boolean fullySettled = outstanding != null
-                && outstanding.compareTo(BigDecimal.ZERO) <= 0;
+        	// Match the zero-balance requirement in your NocService.
+        	boolean fullySettled =
+        	    outstanding != null
+        	        && outstanding.compareTo(BigDecimal.ZERO) == 0;
 
-        boolean alreadyReleased =
-                "RELEASED".equalsIgnoreCase(collateral.getReleaseStatus());
+        	boolean alreadyReleased =
+        	    "RELEASED".equalsIgnoreCase(collateral.getReleaseStatus());
 
-        boolean eligible = loanClosed && fullySettled && !alreadyReleased;
+        	boolean nocIssued = nocClient.hasAvailableNoc(
+        		    collateral.getLoanAccountId(),
+        		    bearerToken
+        		);
 
-        List<CollateralReleaseRequests> existingRequests =
-                collateralReleaseRepository.findByCollateralIdAndStatusIn(
-                        collateralId,
-                        ACTIVE_REQUEST_STATUSES);
+        	boolean eligible =
+        	    loanClosed && fullySettled && nocIssued && !alreadyReleased;
 
-        String requestStatus = existingRequests.isEmpty()
-                ? "NONE"
-                : existingRequests.get(0).getStatus();
+        	List<CollateralReleaseRequests> existingRequests =
+        	    collateralReleaseRepository.findByCollateralIdAndStatusIn(
+        	        collateralId,
+        	        ACTIVE_REQUEST_STATUSES
+        	    );
 
-        boolean canSubmitRequest =
-                eligible && existingRequests.isEmpty();
+        	String requestStatus = existingRequests.isEmpty()
+        	    ? "NONE"
+        	    : existingRequests.get(0).getStatus();
 
-        String message;
-        if (alreadyReleased) {
-            message = "Collateral has already been released";
-        } else if (!loanClosed) {
-            message = "Loan must be closed before collateral release";
-        } else if (!fullySettled) {
-            message = "Loan must be fully settled before collateral release";
-       } 
-//            else if (!nocIssued) {
-//            message = "NOC is still pending. Release can be requested after issuance.";
-//        } else
-        {
-            message = "Collateral is eligible for a release request";
-        }
+        	boolean canSubmitRequest =
+        	    eligible && existingRequests.isEmpty();
 
-        return Map.of(
-                "collateralId", collateralId,
-                "loanAccountId", collateral.getLoanAccountId(),
-                "eligible", eligible,
-                "canSubmitRequest", canSubmitRequest,
-                "requestStatus", requestStatus,
-                "message", message
-        );
+        	String message;
+
+        	if (alreadyReleased) {
+        	    message = "Collateral has already been released";
+        	} else if (!loanClosed) {
+        	    message = "Loan must be closed before collateral release";
+        	} else if (!fullySettled) {
+        	    message = "Loan must be fully settled before collateral release";
+        	} else if (!nocIssued) {
+        	    message = "NOC is still pending. Release can be requested after issuance.";
+        	} else if (!existingRequests.isEmpty()) {
+        	    message = "A release request is already active (" + requestStatus + ")";
+        	} else {
+        	    message = "Collateral is eligible for a release request";
+        	}
+
+        	return Map.of(
+        	    "collateralId", collateralId,
+        	    "loanAccountId", collateral.getLoanAccountId(),
+        	    "nocIssued", nocIssued,
+        	    "eligible", eligible,
+        	    "canSubmitRequest", canSubmitRequest,
+        	    "requestStatus", requestStatus,
+        	    "message", message
+        	);
     }
 
     public void assertLoanOwnedByBorrower(
@@ -159,3 +173,4 @@ public class CollateralService {
     }
 
 }
+

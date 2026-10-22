@@ -115,27 +115,27 @@ public class SecurityConfig {
                                 "/api/grievances/status/**",
                                 "/api/grievances/loan/**",
                                 "/api/grievances/overdue")
-                        .hasRole("ADMIN")
+                        .hasRole("SENIOR_GRIEVANCE_OFFICER")
                         .requestMatchers(HttpMethod.PATCH, "/api/grievances/*/assign")
-                        .hasRole("ADMIN")
+                        .hasRole("SENIOR_GRIEVANCE_OFFICER")
 
                         // Controller/service must still check the authenticated
                         // officer identity and the record's ASSIGNED_TO value.
                         .requestMatchers(HttpMethod.GET, "/api/grievances/officer/**")
                         .hasAnyRole(
                                 "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER",
-                                "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER")
+                                "COLLATERAL_OFFICER","SENIOR_GRIEVANCE_OFFICER")
                         
                         .requestMatchers(HttpMethod.PATCH, "/api/grievances/*/status")
                         .hasAnyRole(
                                 "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER",
-                                "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER")
+                                "COLLATERAL_OFFICER","SENIOR_GRIEVANCE_OFFICER")
 
                         .requestMatchers(HttpMethod.GET,
                                 "/api/grievances/*", "/api/grievances/*/history")
                         .hasAnyRole(
                                 "BORROWER", "LOAN_CLOSURE_OFFICER",
-                                "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER")
+                                "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER","SENIOR_GRIEVANCE_OFFICER")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt

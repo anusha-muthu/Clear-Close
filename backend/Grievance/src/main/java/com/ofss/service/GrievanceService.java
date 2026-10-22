@@ -172,11 +172,19 @@ public class GrievanceService {
 
         saveHistory(saved.getGrievanceId(), null, "OPEN", "Grievance submitted by borrower", actorId, "BORROWER");
         publishAudit(saved, "GRIEVANCE_SUBMITTED", null);
-        if (saved.getAssignedTo() != null) {
-            saveHistory(saved.getGrievanceId(), "OPEN", "OPEN",
-                "Auto-assigned by category to officer " + saved.getAssignedTo(), null, "SYSTEM");
-            publishAudit(saved, "GRIEVANCE_AUTO_ASSIGNED", null);
+        if (saved.getAssignedTo() == null) {
+            saved.setStatus("ESCALATED");
+            boolean handedOff = assignSeniorForEscalation(saved);
+            saved.setUpdatedAt(LocalDateTime.now());
+            saved = grievanceRepository.save(saved);
+            saveHistory(saved.getGrievanceId(), "OPEN", "ESCALATED",
+                handedOff
+                    ? "No active category officer available; escalated to senior officer " + saved.getAssignedTo()
+                    : "No active category or senior officer available; awaiting senior assignment",
+                null, "SYSTEM");
+            publishAudit(saved, "GRIEVANCE_ESCALATED_NO_CATEGORY_OFFICER", null);
         }
+
         return saved;
     }
 
@@ -209,58 +217,39 @@ public class GrievanceService {
 
     @Transactional
     public Grievances assignGrievance(
-            Long grievanceId,
-            Long officerId,
-            Long actionBy,
-            String actorType) {
-
-        requireAdmin(actionBy, actorType);
-
+            Long grievanceId, Long officerId, Long actionBy, String actorType) {
+        Officer senior = requireSenior(actionBy, actorType);
         Grievances grievance = lockedGrievance(grievanceId);
+        if (Objects.equals(senior.borrowerId(), grievance.getBorrowerId())) {
+            throw error(HttpStatus.FORBIDDEN, "An officer cannot review their own borrower grievance");
+        }
+        if (!isSeniorQueueItem(grievance, actionBy)) {
+            throw error(HttpStatus.FORBIDDEN, "Only escalated, unassigned or your own assigned grievances can be reassigned");
+        }
+        if (List.of("RESOLVED", "REJECTED", "CLOSED").contains(grievance.getStatus())) {
+            throw error(HttpStatus.CONFLICT, "A completed grievance cannot be reassigned");
+        }
         Officer target = activeOfficer(officerId);
-
-        if (Objects.equals(
-                target.borrowerId(),
-                grievance.getBorrowerId())) {
-
-            throw error(
-                HttpStatus.FORBIDDEN,
-                "An officer cannot review their own borrower grievance"
-            );
+        if (Objects.equals(target.borrowerId(), grievance.getBorrowerId())) {
+            throw error(HttpStatus.FORBIDDEN, "An officer cannot review their own borrower grievance");
         }
-
-        String requiredRole =
-            "ESCALATED".equals(grievance.getStatus())
-                ? "SENIOR_GRIEVANCE_OFFICER"
-                : GrievancePolicy.roleForCategory(
-                    grievance.getCategory()
-                );
-
-        if (!requiredRole.equals(target.role())
-                && !"ADMIN".equals(target.role())) {
-
-            throw error(
-                HttpStatus.BAD_REQUEST,
-                "This grievance requires " + requiredRole + " or ADMIN"
-            );
+        String categoryRole = GrievancePolicy.roleForCategory(grievance.getCategory());
+        if (!categoryRole.equals(target.role())
+                && !"SENIOR_GRIEVANCE_OFFICER".equals(target.role())) {
+            throw error(HttpStatus.BAD_REQUEST,
+                "This category requires " + categoryRole + " or SENIOR_GRIEVANCE_OFFICER");
         }
-
+        Long previousOfficer = grievance.getAssignedTo();
+        if (Objects.equals(previousOfficer, officerId)) {
+            return grievance;
+        }
         grievance.setAssignedTo(officerId);
         grievance.setUpdatedAt(LocalDateTime.now());
-
         Grievances saved = grievanceRepository.save(grievance);
-
-        saveHistory(
-            grievanceId,
-            saved.getStatus(),
-            saved.getStatus(),
-            "Assigned to officer " + officerId,
-            actionBy,
-            "OFFICER"
-        );
-
+        saveHistory(grievanceId, saved.getStatus(), saved.getStatus(),
+            "Senior officer reassigned from " + previousOfficer + " to " + officerId,
+            actionBy, "OFFICER");
         publishAudit(saved, "GRIEVANCE_ASSIGNED", actionBy);
-
         return saved;
     }
     
@@ -303,6 +292,30 @@ public class GrievanceService {
 
         grievance.setAssignedTo(seniorId);
         return true;
+    }
+    private Officer requireSenior(Long actorId, String actorType) {
+        requireActor(actorId, actorType, "OFFICER");
+        Officer actor = activeOfficer(actorId);
+        if (!"SENIOR_GRIEVANCE_OFFICER".equals(actor.role())) {
+            throw error(HttpStatus.FORBIDDEN, "Only a senior grievance officer can assign grievances");
+        }
+        return actor;
+    }
+
+    private boolean isSeniorQueueItem(Grievances grievance, Long seniorId) {
+        return Objects.equals(seniorId, grievance.getAssignedTo())
+            || "ESCALATED".equals(grievance.getStatus())
+            || (grievance.getAssignedTo() == null
+                && !List.of("RESOLVED", "REJECTED", "CLOSED").contains(grievance.getStatus()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Grievances> getSeniorQueue(Long actorId, String actorType) {
+        Officer senior = requireSenior(actorId, actorType);
+        return grievanceRepository.findAll().stream()
+            .filter(g -> !Objects.equals(senior.borrowerId(), g.getBorrowerId()))
+            .filter(g -> isSeniorQueueItem(g, actorId))
+            .toList();
     }
 
     @Transactional
@@ -374,10 +387,16 @@ public class GrievanceService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusDays(5);
         List<?> candidates = entityManager.createNativeQuery("""
-            SELECT GRIEVANCE_ID FROM GRIEVANCES
-            WHERE CREATED_AT < :cutoff
-              AND STATUS IN ('OPEN', 'IN_PROGRESS', 'MORE_INFO_REQUIRED')
-            ORDER BY CREATED_AT, GRIEVANCE_ID
+            SELECT g.GRIEVANCE_ID FROM GRIEVANCES g
+			WHERE g.CREATED_AT < :cutoff
+			  AND g.STATUS IN ('OPEN', 'IN_PROGRESS', 'MORE_INFO_REQUIRED')
+			  AND NOT EXISTS (
+			      SELECT 1 FROM GRIEVANCES_HISTORY h
+			      WHERE h.GRIEVANCE_ID = g.GRIEVANCE_ID
+			        AND h.NEW_STATUS = 'ESCALATED'
+			  )
+			ORDER BY g.CREATED_AT, g.GRIEVANCE_ID
+
             """).setParameter("cutoff", Timestamp.valueOf(cutoff))
             .setMaxResults(100)
             .getResultList();
