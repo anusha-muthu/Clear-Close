@@ -122,13 +122,15 @@ public class CollateralService {
         String message;
         if (alreadyReleased) {
             message = "Collateral has already been released";
-        } else if (!existingRequests.isEmpty()) {
-            message = "A release request is already active (" + requestStatus + ")";
         } else if (!loanClosed) {
             message = "Loan must be closed before collateral release";
         } else if (!fullySettled) {
             message = "Loan must be fully settled before collateral release";
-        } else {
+       } 
+//            else if (!nocIssued) {
+//            message = "NOC is still pending. Release can be requested after issuance.";
+//        } else
+        {
             message = "Collateral is eligible for a release request";
         }
 
