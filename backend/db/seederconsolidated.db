@@ -267,10 +267,12 @@ VALUES
 INSERT INTO COLLATERAL
 (COLLATERAL_ID, LOAN_ACCOUNT_ID,
  COLLATERAL_TYPE, DESCRIPTION,
- CUSTODIAN, RELEASE_STATUS)
+ FILE_NAME, STORAGE_PATH, CUSTODIAN, RELEASE_STATUS)
 VALUES
 (9001, 1002, 'VEHICLE',
  'Hyundai Creta - Demo Vehicle',
+ -- Demo metadata only; this seed does not create a document on disk.
+ 'demo-vehicle-documents.pdf', 'demo/collateral/demo-vehicle-documents.pdf',
  'Loan Operations', 'RELEASED');
 
 
