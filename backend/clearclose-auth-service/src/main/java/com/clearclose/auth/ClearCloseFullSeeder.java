@@ -106,10 +106,10 @@ public class ClearCloseFullSeeder {
                 """
                 INSERT INTO LOAN_PRODUCT_RULE
                 (RULE_ID, PRODUCT_TYPE, COOLING_OFF_DAYS,
-                 CLOSURE_CHARGE_TYPE, EFFECTIVE_FROM)
+                 CLOSURE_CHARGE_TYPE, EFFECTIVE_FROM, COOLING_OFF_PROCESSING_FEE)
                 VALUES
                 (3101, 'PERSONAL_LOAN', 5,
-                 'NONE', DATE '2026-01-01')
+                 'NONE', DATE '2026-01-01', 500)
                 """
             );
 
@@ -118,10 +118,10 @@ public class ClearCloseFullSeeder {
                 INSERT INTO LOAN_PRODUCT_RULE
                 (RULE_ID, PRODUCT_TYPE, COOLING_OFF_DAYS,
                  CLOSURE_CHARGE_TYPE, CLOSURE_CHARGE_VALUE,
-                 EFFECTIVE_FROM)
+                 EFFECTIVE_FROM, COOLING_OFF_PROCESSING_FEE)
                 VALUES
                 (3102, 'CAR_LOAN', 5,
-                 'PERCENTAGE', 2, DATE '2026-01-01')
+                 'PERCENTAGE', 2, DATE '2026-01-01', 500)
                 """
             );
 
