@@ -18,7 +18,7 @@ export const OFFICER_PORTALS = {
       "LOAN_CLOSURE_OFFICER",
       "GRIEVANCE_OFFICER",
       "COLLATERAL_OFFICER",
-      "ADMIN",
+      "SENIOR_GRIEVANCE_OFFICER",
     ],
     dashboard: "#grievance-officer-dashboard",
   },

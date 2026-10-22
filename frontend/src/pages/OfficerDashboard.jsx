@@ -1,990 +1,253 @@
-
 import { useEffect, useRef, useState } from "react";
-import RequestInformation from "../components/RequestInformation";
-
 import {
-  getOfficerRequests,
-  getOfficerRequestDetails,
-  getOfficerSummary,
-  assignRequest,
-  makeOfficerDecision,
-} from "../officerApi";
+  getAssignedGrievances,
+  getSeniorGrievances,
+  assignGrievance,
+  updateAssignedGrievance,
+} from "../officerGrievanceApi.jsx";
 
-// -----------------------------------------
-// FORMAT CURRENCY
-// -----------------------------------------
+const CATEGORY_LABELS = {
+  DELAY: "NOC / collateral processing delay",
+  SETTLEMENT: "Settlement value discrepancy",
+  SYSTEM: "Portal system error",
+  OTHER: "Other issues",
+};
 
-function formatCurrency(amount) {
-  if (amount == null) return "Not available";
+const TRANSITIONS = {
+  OPEN: ["IN_PROGRESS", "ESCALATED"],
+  IN_PROGRESS: ["RESOLVED", "ESCALATED"],
+  ESCALATED: ["IN_PROGRESS", "CLOSED"],
+  RESOLVED: ["CLOSED"]
+};
 
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(amount);
+const STATUSES = ["OPEN", "IN_PROGRESS","ESCALATED", "RESOLVED"];
+const label = (value) => String(value || "Unknown").replaceAll("_", " ");
+const time = (value) => value ? new Date(value).toLocaleString() : "Not available";
+const field = "w-full rounded-xl border border-[#dfe5df] bg-white px-4 py-3 text-sm";
+
+function Badge({ status }) {
+  const color = status === "ESCALATED" ? "bg-red-100 text-red-800" :
+    ["RESOLVED", "CLOSED"].includes(status) ? "bg-lime-100 text-lime-800" :
+    status === "IN_PROGRESS" ? "bg-sky-100 text-sky-800" : "bg-orange-100 text-orange-800";
+  return <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${color}`}>{label(status)}</span>;
 }
 
-// -----------------------------------------
-// FORMAT DATE
-// -----------------------------------------
-
-function formatDate(date) {
-  if (!date) return "Not available";
-
-  return String(date)
-    .replace("T", " ")
-    .slice(0, 16);
-}
-
-// -----------------------------------------
-// STATUS BADGE
-// -----------------------------------------
-
-function StatusBadge({ status }) {
-  const colors = {
-    PENDING: "officer-status-pending",
-    UNDER_REVIEW: "officer-status-review",
-    APPROVED: "officer-status-success",
-    COMPLETED: "officer-status-success",
-    REJECTED: "officer-status-danger",
-    MORE_INFO_REQUIRED: "officer-status-attention",
-    CANCELLED: "officer-status-neutral",
-    EXPIRED: "officer-status-neutral",
-  };
-
-  return (
-    <span
-      className={`officer-status ${colors[status] || "officer-status-neutral"}`}
-    >
-      {status?.replaceAll("_", " ") || "UNKNOWN"}
-    </span>
-  );
-}
-
-// -----------------------------------------
-// DETAIL FIELD
-// -----------------------------------------
-
-function DetailField({ label, value }) {
-  return (
-    <div className="officer-detail-field">
-      <p className="text-xs text-gray-500">
-        {label}
-      </p>
-
-      <p className="mt-2 break-words text-sm font-semibold">
-        {value ?? "Not available"}
-      </p>
-    </div>
-  );
-}
-
-// =========================================
-// MAIN OFFICER DASHBOARD
-// =========================================
-
-function OfficerDashboard({ session, onLogout }) {
-
-  const [requests, setRequests] = useState([]);
-  const [summary, setSummary] = useState(null);
-
+export default function GrievanceOfficerDashboard({ session }) {
+  const [tickets, setTickets] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-
-  const [activeView, setActiveView] = useState("all");
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-
-  const [loading, setLoading] = useState(true);
-  const [detailsLoading, setDetailsLoading] = useState(false);
-  const [assigning, setAssigning] = useState(false);
-  const [decision, setDecision] = useState("APPROVED");
+  const [search, setSearch] = useState("");
+  const [nextStatus, setNextStatus] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [savingDecision, setSavingDecision] = useState(false);
-  const decisionSubmittingRef = useRef(false);
-  const [decisionResult, setDecisionResult] = useState(null);
-
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [detailsError, setDetailsError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const [refreshCount, setRefreshCount] = useState(0);
-
-  function refreshRequest() {
-    setDecisionResult(null);
-    setSuccess("");
-    setActionError("");
-    setRefreshCount((count) => count + 1);
-  }
-
-  // -----------------------------------------
-  // 1. FETCH DASHBOARD DATA
-  // -----------------------------------------
+  const [notice, setNotice] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const mutation = useRef(null);
+  const busy = useRef(false);
+  const [targetOfficerId, setTargetOfficerId] = useState("");
+  const role = session?.role;
+  const isSenior = role === "SENIOR_GRIEVANCE_OFFICER";
+  const ownsSelected = selectedId != null && tickets.some((ticket) =>
+    String(ticket.grievanceId) === String(selectedId) &&
+    String(ticket.assignedTo) === String(session?.userId));
+  const token = session?.token;
+  const accountType = session?.accountType;
+  const userId = session?.userId;
+  const selected = tickets.find((ticket) => ticket.grievanceId === selectedId);
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
-
-    async function loadDashboard() {
-      setLoading(true);
-      setError("");
-
-      try {
-        // Fetch requests and summary together
-        const [requestData, summaryData] =
-          await Promise.all([
-            getOfficerRequests(session.token),
-            getOfficerSummary(session.token),
-          ]);
-
-        if (!Array.isArray(requestData)) {
-          throw new Error("Invalid request data received.");
-        }
-
-        if (active) {
-          setRequests(requestData);
-          setSummary(summaryData);
-        }
-
-      } catch (err) {
-        if (active) {
-          setError(err.message);
-        }
-
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadDashboard();
-
-    return () => {
-      active = false;
-    };
-
-  }, [session.token, refreshCount]);
-
-  // -----------------------------------------
-  // 2. FETCH SELECTED REQUEST DETAILS
-  // -----------------------------------------
+    setLoading(true);
+    setError("");
+    setTickets([]);
+    setSelectedId(null);
+    const load = isSenior ? getSeniorGrievances : getAssignedGrievances;
+    load({ token, accountType, userId, role }, controller.signal)
+      .then((rows) => { if (active) setTickets(rows); })
+      .catch((err) => { if (active && err.name !== "AbortError") setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [token, accountType, userId, role, isSenior, refresh]);
 
   useEffect(() => {
-    if (selectedId == null) {
-      setSelectedRequest(null);
-      return;
-    }
+    setNextStatus("");
+    setRemarks("");
+    setTargetOfficerId("");
+  }, [selectedId, selected?.status]);
 
-    let active = true;
+  useEffect(() => {
+    setSaving(false);
+    return () => { mutation.current?.abort(); busy.current = false; };
+  }, [token, accountType, userId, role]);
 
-    async function loadDetails() {
-      setDetailsLoading(true);
-      setDetailsError("");
-      setSelectedRequest(null);
+  const query = search.trim().toLowerCase();
+  const visible = tickets.filter((ticket) =>
+    (statusFilter === "ALL" || ticket.status === statusFilter) &&
+    [ticket.grievanceId, ticket.loanReference, ticket.loanAccountId,
+      ticket.borrowerName, ticket.category, ticket.description]
+      .some((value) => String(value ?? "").toLowerCase().includes(query))
+  );
 
-      try {
-        const data = await getOfficerRequestDetails(
-          session.token,
-          selectedId
-        );
-
-        if (active) {
-          setSelectedRequest(data);
-        }
-
-      } catch (err) {
-        if (active) {
-          setDetailsError(err.message);
-        }
-
-      } finally {
-        if (active) {
-          setDetailsLoading(false);
-        }
-      }
-    }
-
-    loadDetails();
-
-    return () => {
-      active = false;
-    };
-
-  }, [session.token, selectedId, refreshCount]);
-
-  // -----------------------------------------
-  // 3. FILTER REQUESTS
-  // -----------------------------------------
-
-  const filteredRequests = requests.filter((request) => {
-    const keyword = search.toLowerCase().trim();
-
-    const matchesSearch =
-      String(request.exitRequestId).includes(keyword) ||
-      String(request.loanId).includes(keyword) ||
-      String(request.borrowerName || "")
-        .toLowerCase()
-        .includes(keyword) ||
-      String(request.loanReference || "")
-        .toLowerCase()
-        .includes(keyword);
-
-    const matchesStatus =
-      statusFilter === "ALL" ||
-      request.status === statusFilter;
-
-    const matchesView =
-      activeView === "all" ||
-      Number(request.officerId) === Number(session.userId);
-
-    return matchesSearch && matchesStatus && matchesView;
-  });
-
-  // -----------------------------------------
-  // 4. ASSIGN REQUEST TO CURRENT OFFICER
-  // -----------------------------------------
-
-  async function handleAssign(requestId) {
-    setAssigning(true);
-    setActionError("");
-    setSuccess("");
-
-    try {
-      await assignRequest(session.token, requestId);
-
-      setSuccess("Request assigned successfully.");
-      // Refresh request list, summary and details
-      setRefreshCount((count) => count + 1);
-
-    } catch (err) {
-      setActionError(err.message);
-
-    } finally {
-      setAssigning(false);
-    }
-  }
-
-  async function handleDecision(event) {
+  async function save(event) {
     event.preventDefault();
-    if (!selectedRequest || decisionSubmittingRef.current) return;
-
-    const decisionRemarks = remarks.trim();
-    if (!["APPROVED", "REJECTED", "MORE_INFO_REQUIRED"].includes(decision)) {
-      setActionError("Choose a valid decision.");
+    if (busy.current || !selected || !ownsSelected) return;
+    if (!nextStatus || !remarks.trim()) {
+      setError("Choose a status and enter action remarks.");
       return;
     }
-    if (!decisionRemarks) {
-      setActionError("Please enter decision remarks.");
-      return;
-    }
-    if (decisionRemarks.length > 1000) {
-      setActionError("Decision remarks must be 1000 characters or fewer.");
-      return;
-    }
-
-    decisionSubmittingRef.current = true;
-    setSavingDecision(true);
-    setActionError("");
-    setSuccess("");
-    setDecisionResult(null);
-
+    const controller = new AbortController();
+    mutation.current = controller;
+    busy.current = true;
+    setSaving(true);
+    setError("");
+    setNotice("");
     try {
-      const result = await makeOfficerDecision(
-        session.token,
-        selectedRequest.exitRequestId,
-        decision,
-        decisionRemarks,
-      );
-
-      setDecisionResult(result);
-      setSuccess(result?.status
-        ? `Request #${result.exitRequestId ?? selectedRequest.exitRequestId} updated to ${result.status}.`
-        : "Decision submitted successfully.");
+      const updated = await updateAssignedGrievance(session, selected.grievanceId, {
+        expectedStatus: selected.status,
+        status: nextStatus,
+        remarks: remarks.trim(),
+      }, controller.signal);
+      if (controller.signal.aborted) return;
+      setTickets((rows) => rows.flatMap((row) => {
+        if (row.grievanceId !== updated.grievanceId) return [row];
+        const inQueue = isSenior
+          ? updated.status === "ESCALATED" || String(updated.assignedTo) === String(userId) ||
+            (updated.assignedTo == null && !["RESOLVED", "REJECTED", "CLOSED"].includes(updated.status))
+          : String(updated.assignedTo) === String(userId);
+        return inQueue ? [updated] : [];
+      }));
+      setNextStatus("");
       setRemarks("");
-      setDecision("APPROVED");
-      setRefreshCount((count) => count + 1);
+      setNotice("Grievance updated.");
     } catch (err) {
-      setActionError(err.message);
+      if (err.name !== "AbortError") setError(err.message);
     } finally {
-      decisionSubmittingRef.current = false;
-      setSavingDecision(false);
+      if (mutation.current === controller) {
+        busy.current = false;
+        if (!controller.signal.aborted) setSaving(false);
+      }
     }
   }
 
-  // -----------------------------------------
-  // 5. LOGOUT
-  // -----------------------------------------
-
-  function handleLogout() {
-    onLogout();
-    window.location.hash = "#home";
+  async function saveAssignment(event) {
+    event.preventDefault();
+    if (busy.current || !selected || !isSenior) return;
+    const controller = new AbortController();
+    mutation.current = controller; busy.current = true;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const updated = await assignGrievance(session, selected.grievanceId, targetOfficerId, controller.signal);
+      if (controller.signal.aborted) return;
+      setTickets((rows) => rows.flatMap((row) => {
+        if (String(row.grievanceId) !== String(updated.grievanceId)) return [row];
+        return updated.status === "ESCALATED" || String(updated.assignedTo) === String(userId)
+          ? [updated] : [];
+      }));
+      setTargetOfficerId("");
+      setNotice(`Grievance #${updated.grievanceId} assigned to officer #${updated.assignedTo}.`);
+    } catch (err) {
+      if (!controller.signal.aborted) setError(err.message);
+    } finally {
+      if (mutation.current === controller) {
+        busy.current = false;
+        if (!controller.signal.aborted) setSaving(false);
+      }
+    }
   }
 
-  // -----------------------------------------
-  // SUMMARY CARDS
-  // -----------------------------------------
-
-  const summaryCards = [
-    {
-      label: "Total Requests",
-      value: summary?.totalRequests ?? 0,
-    },
-    {
-      label: "Pending",
-      value: summary?.pending ?? 0,
-    },
-    {
-      label: "Under Review",
-      value: summary?.underReview ?? 0,
-    },
-    {
-      label: "Assigned to Me",
-      value: summary?.assignedToMe ?? 0,
-    },
-    {
-      label: "Approved",
-      value: summary?.approved ?? 0,
-    },
-    {
-      label: "Completed",
-      value: summary?.completed ?? 0,
-    },
+  const availableActions = TRANSITIONS[selected?.status] || [];
+  const metrics = [
+    [isSenior ? "Senior review queue" : "Assigned to you", tickets.length],
+    ["Open", tickets.filter((t) => t.status === "OPEN").length],
+    ["In progress", tickets.filter((t) => t.status === "IN_PROGRESS").length],
+    ["Escalated", tickets.filter((t) => t.status === "ESCALATED").length],
   ];
 
-  const canDecide =
-    selectedRequest?.status === "UNDER_REVIEW" &&
-    Number(selectedRequest.officerId) === Number(session.userId);
-
-  // =========================================
-  // RENDER
-  // =========================================
-
   return (
-    <div className="officer-shell">
+    <main className="min-h-screen bg-[#fafbf8] px-6 py-10 text-[#102018] lg:px-16">
+      <header className="mx-auto mb-8 flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b pb-6">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-lime-700">Bank Employee Portal</p>
+          <h1 className="mt-2 text-4xl" style={{ fontFamily: "'Playfair Display', serif" }}>{isSenior ? "Grievance Review & Assignment" : "Assigned Grievances"}</h1>
+          <p className="mt-2 text-sm text-gray-600">{isSenior ? "Review escalated or unassigned complaints and assign the responsible officer." : "Review customer complaints assigned to you and record your actions."}</p>
+          <p className="mt-2 text-xs text-gray-500">{session?.username} · {label(session?.role)}</p>
+        </div>
+        <button type="button" disabled={loading || saving} onClick={() => { setNotice(""); setRefresh((v) => v + 1); }} className="rounded-full border bg-white px-5 py-3 text-sm disabled:opacity-50">Refresh</button>
+      </header>
 
-      <div className="officer-layout">
+      {error && <p role="alert" className="mx-auto mb-5 max-w-7xl rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
+      {notice && <p role="status" className="mx-auto mb-5 max-w-7xl rounded-xl bg-lime-50 p-4 text-sm text-lime-800">{notice}</p>}
 
-        {/* SIDEBAR */}
+      <section aria-label="Assignment statistics" className="mx-auto mb-8 grid max-w-7xl grid-cols-2 gap-4 md:grid-cols-4">
+        {metrics.map(([name, value]) => <div key={name} className="rounded-2xl border bg-white p-5"><p className="text-sm text-gray-500">{name}</p><p className="mt-2 text-3xl font-bold">{loading || error && !tickets.length ? "—" : value}</p></div>)}
+      </section>
 
-        <aside className="officer-sidebar borrower-sidebar">
-
-          <a href="/" className="dashboard-brand dashboard-brand-light">
-            <span className="dashboard-brand-mark" />
-            Clear<span>Close</span>
-          </a>
-
-          <p className="sidebar-heading officer-sidebar-label">
-            Officer Portal
-          </p>
-
-          <nav className="sidebar-nav officer-sidebar-nav">
-
-            <button
-              onClick={() => setActiveView("all")}
-              className={`sidebar-link ${
-                activeView === "all"
-                  ? "active"
-                  : ""
-              }`}
-            >
-              ▦ All Requests
-            </button>
-
-            <button
-              onClick={() => setActiveView("mine")}
-              className={`sidebar-link ${
-                activeView === "mine"
-                  ? "active"
-                  : ""
-              }`}
-            >
-              ◫ Assigned to Me
-            </button>
-
-          </nav>
-
-          <div className="officer-sidebar-account">
-
-            <div className="officer-account-card">
-              <p className="font-semibold">
-                {session.username}
-              </p>
-
-              <p>
-                {session.role.replaceAll("_", " ")}
-              </p>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="officer-logout-button"
-            >
-              Logout
-            </button>
-
+      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-3">
+        <section className="overflow-hidden rounded-2xl border bg-white lg:col-span-2" aria-label="Assigned grievance list">
+          <div className="flex flex-wrap gap-3 border-b p-4">
+            <input aria-label="Search assigned grievances" className={`${field} flex-1`} placeholder="Search complaint, customer or loan" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <select aria-label="Filter status" className={`${field} sm:w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="ALL">All statuses</option>
+              {STATUSES.map((status) => <option key={status} value={status}>{label(status)}</option>)}
+            </select>
           </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="p-4">Complaint</th><th className="p-4">Customer / loan</th><th className="p-4">Status / officer</th></tr></thead>
+              <tbody>
+                {visible.map((ticket) => <tr key={ticket.grievanceId} className={`border-t ${selectedId === ticket.grievanceId ? "bg-lime-50" : ""}`}>
+                  <td className="p-4"><button type="button" disabled={saving} onClick={() => setSelectedId(ticket.grievanceId)} className="font-bold underline">#{ticket.grievanceId}</button><p className="mt-1 text-xs text-gray-500">{CATEGORY_LABELS[ticket.category] || ticket.category}</p></td>
+                  <td className="p-4">{ticket.borrowerName || `Borrower #${ticket.borrowerId}`}<p className="mt-1 text-xs text-gray-500">{ticket.loanReference || ticket.loanAccountId}</p></td>
+                  <td className="p-4"><Badge status={ticket.status} /><p className="mt-2 text-xs text-gray-500">{ticket.assignedTo == null ? "Unassigned" : `Officer #${ticket.assignedTo}`}</p></td>
+                </tr>)}
+              </tbody>
+            </table>
+            {!visible.length && <p className="p-10 text-center text-sm text-gray-500">{loading ? "Loading assigned complaints..." : error ? "Unable to load grievances. Refresh after resolving the error." : "No assigned grievances match this view."}</p>}
+          </div>
+        </section>
 
+        <aside className="rounded-2xl border bg-white p-6">
+          <h2 className="text-lg font-bold">Complaint details</h2>
+          {!selected ? <p className="mt-4 text-sm text-gray-500">Select a complaint to review it.</p> : <>
+            <div className="my-4 flex items-center justify-between gap-3"><strong>#{selected.grievanceId}</strong><Badge status={selected.status} /></div>
+            <dl className="space-y-4 text-sm">
+              <div><dt className="text-gray-500">Category</dt><dd>{CATEGORY_LABELS[selected.category] || selected.category}</dd></div>
+              <div><dt className="text-gray-500">Customer</dt><dd>{selected.borrowerName || `Borrower #${selected.borrowerId}`}</dd></div>
+              <div><dt className="text-gray-500">Loan</dt><dd>{selected.loanReference} (ID {selected.loanAccountId})</dd></div>
+              <div><dt className="text-gray-500">Complaint</dt><dd className="whitespace-pre-wrap break-words">{selected.description}</dd></div>
+              <div><dt className="text-gray-500">Created</dt><dd>{time(selected.createdAt)}</dd></div>
+              <div><dt className="text-gray-500">Last updated</dt><dd>{time(selected.updatedAt)}</dd></div>
+              <div><dt className="text-gray-500">Last action remarks</dt><dd className="whitespace-pre-wrap break-words">{selected.resolutionRemarks || "No remarks recorded."}</dd></div>
+            </dl>
+            {isSenior && !["RESOLVED", "REJECTED", "CLOSED"].includes(selected.status) && (
+              <form onSubmit={saveAssignment} className="mt-6 space-y-4 border-t pt-5">
+                <h3 className="font-bold">Assign / reassign officer</h3>
+                <p className="text-sm text-gray-600">Choose an active category officer or senior grievance officer. DELAY: collateral; SETTLEMENT: loan closure; SYSTEM / OTHER: grievance.</p>
+                <p className="text-xs text-gray-500">Assignment preserves the complaint status. The assigned officer can record the next action.</p>
+                <label className="block text-sm font-semibold">Officer ID
+                  <input type="number" min="1" step="1" required disabled={saving} value={targetOfficerId} onChange={(e) => setTargetOfficerId(e.target.value)} className={`${field} mt-2`} />
+                </label>
+                <button type="submit" disabled={saving || !targetOfficerId} className="w-full rounded-full bg-black px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving..." : "Save assignment"}</button>
+              </form>
+            )}
+            {ownsSelected ? (availableActions.length ? <form onSubmit={save} className="mt-6 space-y-4 border-t pt-5">
+              <label className="block text-sm font-semibold">Update status
+                <select required disabled={saving} className={`${field} mt-2`} value={nextStatus} onChange={(e) => setNextStatus(e.target.value)}>
+                  <option value="">Choose an action</option>
+                  {availableActions.map((status) => <option key={status} value={status}>{label(status)}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-semibold">Action remarks
+                <textarea required disabled={saving} maxLength={1000} rows={4} className={`${field} mt-2`} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+              </label>
+              <button disabled={saving} type="submit" className="w-full rounded-full bg-black px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving..." : "Save action"}</button>
+            </form> : <p className="mt-6 text-sm text-gray-500">No further officer actions are available for this status.</p>) : <p className="mt-5 text-sm text-gray-500">Status updates are available to the assigned officer. Assign this complaint to yourself to review it personally.</p>}
+          </>}
         </aside>
-
-        {/* MAIN CONTENT */}
-
-        <main className="officer-main dashboard-main">
-
-          {/* HEADER */}
-
-          <div className="officer-page-header">
-
-            <div>
-              <p className="dashboard-eyebrow">
-                Bank Employee Dashboard
-              </p>
-
-              <h2>
-                Cooling-Off Requests
-              </h2>
-
-              <p className="dashboard-muted">
-                Review borrower requests and manage assignments.
-              </p>
-            </div>
-
-            <button
-              onClick={() =>
-                setRefreshCount((count) => count + 1)
-              }
-              disabled={loading}
-              className="dashboard-outline-button"
-            >
-              Refresh ↻
-            </button>
-
-          </div>
-
-          {/* LOADING / ERROR */}
-
-          {loading && (
-            <p className="mt-8 text-gray-500">
-              Loading officer dashboard...
-            </p>
-          )}
-
-          {error && (
-            <p role="alert" className="mt-8 rounded-xl bg-red-50 p-4 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
-          {!loading && !error && (
-            <>
-
-              {/* SUMMARY CARDS */}
-
-              <section className="officer-summary-grid">
-
-                {summaryCards.map((card) => (
-
-                  <div
-                    key={card.label}
-                    className="officer-summary-card"
-                  >
-                    <p>
-                      {card.label}
-                    </p>
-
-                    <h3>
-                      {card.value}
-                    </h3>
-                  </div>
-
-                ))}
-
-              </section>
-
-              {/* REQUEST LIST */}
-
-              <section className="officer-requests-section">
-
-                <div className="officer-requests-heading">
-
-                  <h3>
-                    {activeView === "mine"
-                      ? "My Assigned Requests"
-                      : "Cooling-Off Requests"}
-                  </h3>
-
-                  <div className="officer-request-filters">
-
-                    <input
-                      type="text"
-                      placeholder="Search borrower, loan, request..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="officer-filter-control officer-search-control"
-                    />
-
-                    <select
-                      value={statusFilter}
-                      onChange={(e) =>
-                        setStatusFilter(e.target.value)
-                      }
-                      className="officer-filter-control"
-                    >
-                      <option value="ALL">All Statuses</option>
-                      <option value="PENDING">Pending</option>
-                      <option value="UNDER_REVIEW">Under Review</option>
-                      <option value="MORE_INFO_REQUIRED">More Info Required</option>
-                      <option value="APPROVED">Approved</option>
-                      <option value="REJECTED">Rejected</option>
-                      <option value="COMPLETED">Completed</option>
-                    </select>
-
-                  </div>
-                </div>
-
-                {/* EMPTY STATE */}
-
-                {filteredRequests.length === 0 && (
-                  <div className="officer-empty-state">
-                    <p>
-                      No requests found
-                    </p>
-
-                    <p>
-                      No cooling-off requests match your current filters.
-                    </p>
-                  </div>
-                )}
-
-                {/* REQUEST CARDS */}
-
-                <div className="officer-request-grid">
-
-                  {filteredRequests.map((request) => (
-
-                    <article
-                      key={request.exitRequestId}
-                      className="officer-request-card"
-                    >
-
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-
-                        <div>
-                          <p className="text-xs text-gray-500">
-                            Request #{request.exitRequestId}
-                          </p>
-
-                          <h4 className="mt-2 text-xl font-semibold">
-                            {request.borrowerName}
-                          </h4>
-
-                          <p className="mt-1 text-sm text-gray-500">
-                            {request.loanReference}
-                          </p>
-                        </div>
-
-                        <StatusBadge status={request.status} />
-
-                      </div>
-
-                      <div className="mt-6 grid grid-cols-2 gap-5">
-
-                        <DetailField
-                          label="Loan ID"
-                          value={request.loanId}
-                        />
-
-                        <DetailField
-                          label="Borrower ID"
-                          value={request.borrowerId}
-                        />
-
-                        <DetailField
-                          label="Outstanding"
-                          value={formatCurrency(
-                            request.outstandingAmount
-                          )}
-                        />
-
-                        <DetailField
-                          label="Settlement Quote"
-                          value={formatCurrency(
-                            request.settlementAmount
-                          )}
-                        />
-
-                        <DetailField
-                          label="Request Date"
-                          value={formatDate(
-                            request.requestDate
-                          )}
-                        />
-
-                        <DetailField
-                          label="Assigned Officer"
-                          value={
-                            request.officerId == null
-                              ? "Unassigned"
-                              : `Officer #${request.officerId}`
-                          }
-                        />
-
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setSelectedId(request.exitRequestId);
-                          setDecisionResult(null);
-                          setSuccess("");
-                          setActionError("");
-                        }}
-                        className="dashboard-primary-button full-width officer-request-action"
-                      >
-                        View Request Details →
-                      </button>
-
-                    </article>
-
-                  ))}
-
-                </div>
-
-              </section>
-
-            </>
-          )}
-
-          {/* SELECTED REQUEST DETAILS */}
-
-          {selectedId != null && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-              role="presentation"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget && !savingDecision && !assigning) {
-                  setSelectedId(null);
-                  setDecisionResult(null);
-                  setSuccess("");
-                  setActionError("");
-                }
-              }}
-            >
-              <section
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="officer-request-details-title"
-                className="officer-details-panel !mt-0 max-h-[90vh] w-full max-w-5xl overflow-y-auto"
-              >
-
-              <div className="flex items-center justify-between gap-4">
-
-                <h3 id="officer-request-details-title" className="text-xl font-semibold">
-                  Request Details
-                </h3>
-
-                <button
-                  type="button"
-                  disabled={detailsLoading || savingDecision || assigning}
-                  onClick={refreshRequest}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold disabled:opacity-50"
-                >
-                  Refresh Status
-                </button>
-
-                <button
-                  disabled={savingDecision || assigning}
-                  onClick={() => {
-                    setSelectedId(null);
-                    setDecisionResult(null);
-                    setSuccess("");
-                    setActionError("");
-                  }}
-                  className="text-sm text-gray-500 hover:text-black"
-                >
-                  Close ✕
-                </button>
-
-              </div>
-
-              {detailsLoading && (
-                <p className="mt-5 text-sm text-gray-500">
-                  Loading request details...
-                </p>
-              )}
-
-              {detailsError && (
-                <p role="alert" className="mt-5 text-sm text-red-600">
-                  {detailsError}
-                </p>
-              )}
-
-              {decisionResult && (
-                <section role="status" className="mt-5 rounded-xl border border-green-200 bg-green-50 p-5 text-green-950">
-                  <h3 className="font-semibold">
-                    {decisionResult.status === "APPROVED"
-                      ? "Cooling-Off Exit Request Approved Successfully"
-                      : "Cooling-Off Exit Request Updated"}
-                  </h3>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <DetailField label="Request ID" value={decisionResult.exitRequestId} />
-                    <DetailField label="Updated Status" value={decisionResult.status} />
-                    <DetailField label="Decision Date" value={formatDate(decisionResult.decidedAt)} />
-                    <DetailField label="Decision Remarks" value={decisionResult.remarks} />
-                  </div>
-                </section>
-              )}
-
-              {selectedRequest && !detailsLoading && (
-                <>
-
-                  <div className="mt-6 flex items-center gap-3">
-                    <StatusBadge
-                      status={selectedRequest.status}
-                    />
-
-                    <span className="text-sm text-gray-500">
-                      Request #{selectedRequest.exitRequestId}
-                    </span>
-                  </div>
-
-                  {selectedRequest.status === "APPROVED" && (
-                    <p className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">
-                      Exit request approved. Settlement acceptance, payment verification and final exit completion may still be pending.
-                    </p>
-                  )}
-                  {selectedRequest.status === "REJECTED" && (
-                    <p className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
-                      This cooling-off exit request was rejected.
-                    </p>
-                  )}
-                  {selectedRequest.status === "MORE_INFO_REQUIRED" && (
-                    <p className="mt-4 rounded-xl bg-orange-50 p-4 text-sm text-orange-900">
-                      More information is required for this request.
-                    </p>
-                  )}
-
-                  <RequestInformation
-                    key={selectedRequest.exitRequestId}
-                    token={session.token}
-                    requestId={selectedRequest.exitRequestId}
-                    status={selectedRequest.status}
-                    officer
-                    onRefresh={refreshRequest}
-                  />
-                  {selectedRequest.status === "COMPLETED" && (
-                    <p className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">
-                      This cooling-off exit request is completed.
-                    </p>
-                  )}
-
-                  <div className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-
-                    <DetailField
-                      label="Borrower"
-                      value={selectedRequest.borrowerName}
-                    />
-
-                    <DetailField
-                      label="Borrower ID"
-                      value={selectedRequest.borrowerId}
-                    />
-
-                    <DetailField
-                      label="Loan ID"
-                      value={selectedRequest.loanId}
-                    />
-
-                    <DetailField
-                      label="Loan Reference"
-                      value={selectedRequest.loanReference}
-                    />
-
-                    <DetailField
-                      label="Original Principal"
-                      value={formatCurrency(
-                        selectedRequest.principalAmount
-                      )}
-                    />
-
-                    <DetailField
-                      label="Outstanding Amount"
-                      value={formatCurrency(
-                        selectedRequest.outstandingAmount
-                      )}
-                    />
-
-                    <DetailField
-                      label="Interest Rate"
-                      value={`${selectedRequest.interestRate}%`}
-                    />
-
-                    <DetailField
-                      label="Settlement Amount"
-                      value={formatCurrency(
-                        selectedRequest.settlementAmount
-                      )}
-                    />
-
-                    <DetailField
-                      label="Quote ID"
-                      value={selectedRequest.quoteId}
-                    />
-
-                    <DetailField
-                      label="Quote Status"
-                      value={
-                        selectedRequest.quoteStatus ||
-                        "No quote generated"
-                      }
-                    />
-
-                    <DetailField
-                      label="Quote Valid Until"
-                      value={formatDate(
-                        selectedRequest.quoteValidUntil
-                      )}
-                    />
-
-                    <DetailField
-                      label="Cooling-Off Expiry"
-                      value={formatDate(
-                        selectedRequest.expiryDate
-                      )}
-                    />
-
-                    <DetailField
-                      label="Request Date"
-                      value={formatDate(
-                        selectedRequest.requestDate
-                      )}
-                    />
-
-                    <DetailField
-                      label="Assigned Officer ID"
-                      value={
-                        selectedRequest.officerId ??
-                        "Unassigned"
-                      }
-                    />
-
-                  </div>
-
-                  {/* EXIT REASON */}
-
-                  <div className="officer-reason-panel">
-
-                    <p className="text-xs font-medium text-gray-500">
-                      Borrower's Exit Reason
-                    </p>
-
-                    <p className="mt-2 text-sm">
-                      {selectedRequest.reason ||
-                        "No reason provided"}
-                    </p>
-
-                  </div>
-
-                  {/* ASSIGN BUTTON */}
-
-                  {selectedRequest.status === "PENDING" &&
-                    selectedRequest.officerId == null && (
-
-                    <button
-                      onClick={() =>
-                        handleAssign(
-                          selectedRequest.exitRequestId
-                        )
-                      }
-                      disabled={assigning}
-                      className="dashboard-primary-button officer-assign-button"
-                    >
-                      {assigning
-                        ? "Assigning..."
-                        : "Assign to Me →"}
-                    </button>
-
-                  )}
-
-                  {Number(selectedRequest.officerId) ===
-                    Number(session.userId) && (
-
-                    <p className="mt-6 text-sm font-medium text-green-700">
-                      ✓ This request is assigned to you.
-                    </p>
-
-                  )}
-
-                  {canDecide && (
-                    <form
-                      onSubmit={handleDecision}
-                      className="officer-decision-form mt-6 rounded-xl border border-lime-200 bg-lime-50 p-5"
-                    >
-                      <h3 className="text-lg font-semibold">Officer decision</h3>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Record your review outcome and supporting remarks.
-                      </p>
-                      <label className="mt-4 block text-sm font-medium" htmlFor="officer-decision">
-                        Decision
-                      </label>
-                      <select
-                        id="officer-decision"
-                        value={decision}
-                        onChange={(event) => setDecision(event.target.value)}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
-                      >
-                        <option value="APPROVED">Approve</option>
-                        <option value="REJECTED">Reject</option>
-                        <option value="MORE_INFO_REQUIRED">Request more information</option>
-                      </select>
-                      <label className="mt-4 block text-sm font-medium" htmlFor="officer-remarks">
-                        Decision remarks
-                      </label>
-                      <textarea
-                        id="officer-remarks"
-                        value={remarks}
-                        onChange={(event) => setRemarks(event.target.value.slice(0, 1000))}
-                        placeholder="Enter the reason for your decision..."
-                        maxLength={1000}
-                        required
-                        rows={4}
-                        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
-                      />
-                      <button
-                        type="submit"
-                        disabled={savingDecision}
-                        className="dashboard-primary-button mt-4"
-                      >
-                        {savingDecision ? "Saving..." : "Submit decision"}
-                      </button>
-                      <p className="mt-2 text-right text-xs text-gray-500">
-                        {remarks.length}/1000
-                      </p>
-                    </form>
-                  )}
-
-                  {success && (
-                    <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                      {success}
-                    </p>
-                  )}
-
-                  {actionError && (
-                    <p role="alert" className="mt-4 text-sm text-red-600">
-                      {actionError}
-                    </p>
-                  )}
-
-                </>
-              )}
-
-              </section>
-            </div>
-          )}
-
-        </main>
       </div>
-    </div>
+    </main>
   );
 }
-
-export default OfficerDashboard;

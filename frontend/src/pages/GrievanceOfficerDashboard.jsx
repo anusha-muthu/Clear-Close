@@ -13,15 +13,12 @@ const CATEGORY_LABELS = {
 
 const TRANSITIONS = {
   OPEN: ["IN_PROGRESS", "ESCALATED"],
-  IN_PROGRESS: ["MORE_INFO_REQUIRED", "RESOLVED", "REJECTED", "ESCALATED"],
-  MORE_INFO_REQUIRED: ["IN_PROGRESS", "ESCALATED"],
-  ESCALATED: ["IN_PROGRESS", "MORE_INFO_REQUIRED", "RESOLVED", "REJECTED"],
-  RESOLVED: ["CLOSED"],
-  REJECTED: [],
-  CLOSED: [],
+  IN_PROGRESS: ["MORE_INFO_REQUIRED","ESCALATED"],
+  ESCALATED: ["IN_PROGRESS","CLOSED"],
+  CLOSED: ["CLOSED"]
 };
 
-const STATUSES = ["OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED", "ESCALATED", "RESOLVED", "REJECTED", "CLOSED"];
+const STATUSES = ["OPEN", "IN_PROGRESS", "ESCALATED", "CLOSED"];
 const label = (value) => String(value || "Unknown").replaceAll("_", " ");
 const time = (value) => value ? new Date(value).toLocaleString() : "Not available";
 const field = "w-full rounded-xl border border-[#dfe5df] bg-white px-4 py-3 text-sm";
