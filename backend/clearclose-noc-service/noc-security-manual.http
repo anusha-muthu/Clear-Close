@@ -1,0 +1,79 @@
+# NOC JWT and ownership integration -- manual checks only; nothing was executed.
+# Refresh Maven dependencies and restart NOC Service + Gateway yourself.
+# Set JWT_SECRET in NOC to the exact existing Auth/Gateway signing secret (>=32 bytes).
+# Existing DB configuration and NOC schema are still required. If columns/tables
+# are missing, run ../db/migrate-noc-service.sql manually as the schema owner first.
+# Optional local profile uses the same authentication as every other profile.
+# Do not send officerId/actorId query parameters; these cannot change token identity.
+#
+# POLICY:
+# BORROWER: own-loan reads/download/history/verification only.
+# LOAN_CLOSURE_OFFICER / ADMIN: reads + generation/reissue/retry.
+# COLLATERAL_OFFICER: read-only, including certificate download/verification.
+# GRIEVANCE_OFFICER / unknown role: denied.
+# Database borrower/officer account must be ACTIVE, and officer role must still match.
+# Officer managing their own linked loan: 403.
+# Reads against another borrower's loan/certificate: 404; no document/audit write.
+#
+# MANUAL NEGATIVE CHECKS:
+# Missing/expired/modified/wrong-issuer JWT -> 401 at gateway and directly on 8088.
+# BORROWER token on generation/reissue/retry -> 403 even with ?officerId=2101.
+# Borrower B cannot get/list/download/verify/history/eligibility for Borrower A.
+# COLLATERAL_OFFICER cannot generate/reissue/retry; GRIEVANCE_OFFICER cannot read.
+# Disabled officer or changed DB role -> 403; inactive borrower cannot read.
+# Signed token with no exp, nonpositive/nonintegral userId or mismatched subject denied.
+# Repeat each request directly on port 8088: gateway bypass must not bypass checks.
+# Verify NOC.ISSUED_BY and NOC_AUDIT.ACTOR_ID match JWT userId, never query values.
+# Failed access must not create a PDF/NOC/audit row. Existing eligibility still requires
+# CLOSED loan, zero outstanding, and closure date; active loans cannot get a certificate.
+
+@base = http://localhost:8080
+@direct = http://localhost:8088
+@borrowerToken = REPLACE_WITH_BORROWER_TOKEN
+@officerToken = REPLACE_WITH_LOAN_CLOSURE_OFFICER_TOKEN
+@loanId = REPLACE_WITH_OWNED_CLOSED_LOAN_ID
+@nocId = REPLACE_WITH_OWNED_NOC_ID
+@certificateNumber = REPLACE_WITH_OWNED_CERTIFICATE_NUMBER
+
+### Owning borrower: eligibility
+GET {{base}}/api/noc/eligibility/{{loanId}}
+Authorization: Bearer {{borrowerToken}}
+
+### Loan closure officer: generate (no officerId parameter)
+POST {{base}}/api/noc/generate/{{loanId}}
+Authorization: Bearer {{officerToken}}
+
+### Owning borrower: list
+GET {{base}}/api/noc/loan/{{loanId}}
+Authorization: Bearer {{borrowerToken}}
+
+### Owning borrower: details
+GET {{base}}/api/noc/{{nocId}}
+Authorization: Bearer {{borrowerToken}}
+
+### Owning borrower: verify
+GET {{base}}/api/noc/verify/{{certificateNumber}}
+Authorization: Bearer {{borrowerToken}}
+
+### Owning borrower: download (no actorId parameter)
+GET {{base}}/api/noc/{{nocId}}/download
+Authorization: Bearer {{borrowerToken}}
+
+### Owning borrower: history
+GET {{base}}/api/noc/{{nocId}}/history
+Authorization: Bearer {{borrowerToken}}
+
+### Officer: reissue
+POST {{base}}/api/noc/reissue/{{loanId}}
+Authorization: Bearer {{officerToken}}
+
+### Officer: retry a failed/delayed certificate
+POST {{base}}/api/noc/{{nocId}}/retry
+Authorization: Bearer {{officerToken}}
+
+### Direct port must reject anonymous access, including local profile
+GET {{direct}}/api/noc/{{nocId}}
+
+### Borrower must not access mutations or impersonate an officer
+POST {{direct}}/api/noc/generate/{{loanId}}?officerId=2101
+Authorization: Bearer {{borrowerToken}}

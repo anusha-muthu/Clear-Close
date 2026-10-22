@@ -16,7 +16,7 @@ public class NocAudit {
     @Column(name = "NOC_ID", nullable = false)
     private Long nocId;
 
-    @Column(name = "ACTION", nullable = false)
+    @Column(name = "ACTION", nullable = false, length = 100)
     private String action;
 
     @Column(name = "ACTOR_ID")
@@ -25,7 +25,7 @@ public class NocAudit {
     @Column(name = "ACTION_AT", nullable = false)
     private LocalDateTime actionAt;
 
-    @Column(name = "REMARKS")
+    @Column(name = "REMARKS", length = 1000)
     private String remarks;
 
     public NocAudit() {}

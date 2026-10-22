@@ -17,16 +17,16 @@ public class Noc {
     @Column(name = "LOAN_ID", nullable = false)
     private Long loanId;
 
-    @Column(name = "CERTIFICATE_NUMBER", nullable = false, unique = true)
+    @Column(name = "CERTIFICATE_NUMBER", nullable = false, unique = true, length = 100)
     private String certificateNumber;
 
     @Column(name = "ISSUE_DATE", nullable = false)
     private LocalDate issueDate;
 
-    @Column(name = "FILE_PATH")
+    @Column(name = "FILE_PATH", length = 500)
     private String filePath;
 
-    @Column(name = "NOC_STATUS", nullable = false)
+    @Column(name = "NOC_STATUS", nullable = false, length = 30)
     private String nocStatus;
 
     @Column(name = "VERSION_NUMBER", nullable = false)
@@ -38,10 +38,10 @@ public class Noc {
     @Column(name = "ISSUED_BY")
     private Long issuedBy;
 
-    @Column(name = "REMARKS")
+    @Column(name = "REMARKS", length = 1000)
     private String remarks;
 
-    @Column(name = "FILE_HASH")
+    @Column(name = "FILE_HASH", length = 64)
     private String fileHash;
 
     @Column(name = "CREATED_AT", nullable = false)

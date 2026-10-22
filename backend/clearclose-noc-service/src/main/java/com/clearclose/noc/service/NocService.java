@@ -7,6 +7,8 @@ import com.clearclose.noc.entity.Noc;
 import com.clearclose.noc.entity.NocAudit;
 import com.clearclose.noc.repository.NocAuditRepository;
 import com.clearclose.noc.repository.NocRepository;
+import com.clearclose.noc.security.NocAccess;
+import com.clearclose.noc.security.NocAccess.Actor;
 
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -43,6 +45,7 @@ public class NocService {
     private final NocRepository nocRepository;
     private final NocAuditRepository auditRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final NocAccess access;
 
     @Value("${noc.storage.directory:./generated-nocs}")
     private String storageDirectory;
@@ -53,11 +56,13 @@ public class NocService {
     public NocService(
             NocRepository nocRepository,
             NocAuditRepository auditRepository,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate,
+            NocAccess access) {
 
         this.nocRepository = nocRepository;
         this.auditRepository = auditRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.access = access;
     }
 
     private record LoanDetails(
@@ -144,7 +149,10 @@ public class NocService {
     }
 
     @Transactional(readOnly = true)
-    public NocEligibilityResponse eligibility(Long loanId) {
+    public NocEligibilityResponse eligibility(Long loanId, Actor actor) {
+
+        // Keep ownership failures outside the eligibility catch: return 403/404, not a data response.
+        access.requireLoan(actor, loanId, false);
 
         try {
             LoanDetails loan = getLoan(loanId, false);
@@ -164,6 +172,8 @@ public class NocService {
     }
 
     private Noc requireNoc(Long nocId) {
+        if (nocId == null || nocId <= 0) throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Valid NOC ID required.");
         return nocRepository.findById(nocId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -367,8 +377,9 @@ public class NocService {
     @Transactional
     public NocResponse generate(
             Long loanId,
-            Long officerId) {
+            Actor actor) {
 
+        access.requireLoan(actor, loanId, true);
         LoanDetails loan = getLoan(loanId, true);
         validateEligibility(loan);
 
@@ -381,14 +392,15 @@ public class NocService {
         }
 
         return generateVersion(
-                loan, 1, officerId, false);
+                loan, 1, actor.id(), false);
     }
 
     @Transactional
     public NocResponse reissue(
             Long loanId,
-            Long officerId) {
+            Actor actor) {
 
+        access.requireLoan(actor, loanId, true);
         LoanDetails loan = getLoan(loanId, true);
         validateEligibility(loan);
 
@@ -406,7 +418,7 @@ public class NocService {
         NocResponse replacement = generateVersion(
                 loan,
                 previous.getVersionNumber() + 1,
-                officerId,
+                actor.id(),
                 true);
 
         if ("AVAILABLE".equals(replacement.status())) {
@@ -417,7 +429,7 @@ public class NocService {
             nocRepository.save(previous);
 
             audit(previous, "REVOKED",
-                    officerId, "Certificate reissued");
+                    actor.id(), "Certificate reissued");
         }
 
         return replacement;
@@ -426,9 +438,10 @@ public class NocService {
     @Transactional
     public NocResponse retry(
             Long nocId,
-            Long officerId) {
+            Actor actor) {
 
         Noc noc = requireNoc(nocId);
+        access.requireLoan(actor, noc.getLoanId(), true);
 
         LoanDetails loan = getLoan(noc.getLoanId(), true);
         validateEligibility(loan);
@@ -461,7 +474,7 @@ public class NocService {
             noc = nocRepository.save(noc);
 
             audit(noc, "GENERATED",
-                    officerId, "Retry successful");
+                    actor.id(), "Retry successful");
 
             return NocResponse.from(noc);
 
@@ -473,8 +486,9 @@ public class NocService {
     }
 
     @Transactional(readOnly = true)
-    public List<NocResponse> getByLoan(Long loanId) {
+    public List<NocResponse> getByLoan(Long loanId, Actor actor) {
 
+        access.requireLoan(actor, loanId, false);
         getLoan(loanId, false);
 
         return nocRepository
@@ -485,12 +499,14 @@ public class NocService {
     }
 
     @Transactional(readOnly = true)
-    public NocResponse getById(Long nocId) {
-        return NocResponse.from(requireNoc(nocId));
+    public NocResponse getById(Long nocId, Actor actor) {
+        Noc noc = requireNoc(nocId);
+        access.requireLoan(actor, noc.getLoanId(), false);
+        return NocResponse.from(noc);
     }
 
     @Transactional(readOnly = true)
-    public NocResponse verify(String certificateNumber) {
+    public NocResponse verify(String certificateNumber, Actor actor) {
 
         Noc noc = nocRepository
                 .findByCertificateNumber(certificateNumber)
@@ -498,15 +514,17 @@ public class NocService {
                         HttpStatus.NOT_FOUND,
                         "Certificate not found"));
 
+        access.requireLoan(actor, noc.getLoanId(), false);
         return NocResponse.from(noc);
     }
 
     @Transactional
     public byte[] download(
             Long nocId,
-            Long actorId) {
+            Actor actor) {
 
         Noc noc = requireNoc(nocId);
+        access.requireLoan(actor, noc.getLoanId(), false);
 
         if (!"AVAILABLE".equals(noc.getNocStatus())
                 || noc.getFilePath() == null) {
@@ -538,7 +556,7 @@ public class NocService {
             }
 
             audit(noc, "DOWNLOADED",
-                    actorId, "Certificate downloaded");
+                    actor.id(), "Certificate downloaded");
 
             return pdf;
 
@@ -550,9 +568,10 @@ public class NocService {
     }
 
     @Transactional(readOnly = true)
-    public List<NocAudit> history(Long nocId) {
+    public List<NocAudit> history(Long nocId, Actor actor) {
 
-        requireNoc(nocId);
+        Noc noc = requireNoc(nocId);
+        access.requireLoan(actor, noc.getLoanId(), false);
 
         return auditRepository
                 .findByNocIdOrderByActionAtDesc(nocId);

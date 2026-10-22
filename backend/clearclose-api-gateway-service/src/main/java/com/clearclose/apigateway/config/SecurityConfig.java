@@ -180,10 +180,15 @@ public class SecurityConfig {
                     "/api/payments/**"
                 ).hasRole("BORROWER")
 
+                // NOC mutations are officer-only; borrower reads are ownership-checked in NOC Service.
+                .pathMatchers(HttpMethod.POST, "/api/noc/**")
+                .hasAnyRole("LOAN_CLOSURE_OFFICER", "ADMIN")
+                .pathMatchers(HttpMethod.GET, "/api/noc/**")
+                .hasAnyRole("BORROWER", "LOAN_CLOSURE_OFFICER", "COLLATERAL_OFFICER", "ADMIN")
+
                 // Shared authenticated endpoints
                 .pathMatchers(
                     "/api/grievances/**",
-                    "/api/noc/**",
                     "/api/collateral/**",
                     "/api/auth/me"
                 ).authenticated()
