@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -131,6 +132,8 @@ public class SecurityConfig {
 
         http
             .csrf(csrf -> csrf.disable())
+            .formLogin(AbstractHttpConfigurer::disable)
+            .httpBasic(AbstractHttpConfigurer::disable)
 
             .sessionManagement(session ->
                 session.sessionCreationPolicy(
@@ -150,7 +153,8 @@ public class SecurityConfig {
 
                 // Borrower Cooling-Off APIs
                 .requestMatchers(
-                    "/api/cooling-off/**"
+                    "/api/cooling-off/**",
+                    "/api/payments/**"
                 ).hasRole("BORROWER")
 
                 // Block everything else

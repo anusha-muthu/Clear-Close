@@ -2,8 +2,9 @@ package com.clearclose.service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.clearclose.exit.ClearcloseExitServiceApplication;
 
-@SpringBootTest
+@SpringBootTest(classes = ClearcloseExitServiceApplication.class)
 class ClearcloseExitServiceApplicationTests {
 
 	@Test

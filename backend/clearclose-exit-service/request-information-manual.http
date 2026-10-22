@@ -1,0 +1,107 @@
+# MORE INFORMATION REQUIRED -> BORROWER REPLY -> OFFICER REVIEW
+# Files were only read/edited. No build, service, API, Oracle or UI tests were run.
+# Rebuild/restart Exit Service yourself; reload the frontend. Existing gateway
+# routes and borrower/officer JWT guards cover these new endpoints unchanged.
+# No schema migration or seeder reset is needed. Existing request 21 can be used
+# if it is still MORE_INFO_REQUIRED, assigned, and its loan is ACTIVE, with no
+# accepted/paid settlement for that request. Do not force statuses through SQL.
+#
+# CREATED
+# Exit Service: service/RequestInformationService.java,
+# controller/RequestInformationController.java, controller/RequestInformationErrors.java,
+# request-information-manual.http
+# Frontend: components/RequestInformation.jsx
+# MODIFIED
+# Frontend: api.js, officerApi.js, pages/BorrowerDashboard.jsx, pages/OfficerDashboard.jsx
+#
+# STORAGE / BUSINESS RULES
+# Reuses COOLING_OFF_REQUEST + AUDIT_LOG only.
+# Existing officer decisions already write COOLING_OFF_MORE_INFO_REQUIRED and the
+# requested clarification in AUDIT_LOG.DETAILS; it is now visible in both dashboards.
+# Responses write COOLING_OFF_INFO_SUBMITTED with USER_ID, ENTITY_ID=request ID,
+# ENTITY_TYPE=COOLING_OFF_REQUEST, EXIT_REQUEST_ID and the trimmed reply in DETAILS.
+# History exposes only those two action types after existing ownership/visibility
+# checks. No unrelated financial/internal audit data or personal IDs are returned.
+# Submission locks the owned request, requires MORE_INFO_REQUIRED and ACTIVE loan,
+# assigned officer, and no accepted/paid settlement or successful payment for it.
+# Status -> UNDER_REVIEW, UPDATED_AT -> current DB timestamp, DECIDED_AT -> NULL.
+# Assigned officer, original reason, REQUEST_DATE, EXPIRY_DATE and CREATED_AT stay
+# unchanged. Original decision questions/timestamps remain in audit history.
+# History and status changes commit together; repeated/stale submissions return 409
+# without adding another reply. Wrong borrower/request returns 404; wrong role is
+# denied. Blank/oversized responses return 400; unavailable persistence returns 503.
+# Text-only prototype: DETAILS fits <=1000 characters AND <=1000 UTF-8 bytes,
+# matching conservative existing Oracle VARCHAR2(1000 BYTE) capacity. The frontend
+# asks the customer to shorten replies if the storage limit is exceeded.
+# No document upload or attachment field has been introduced.
+#
+# UI / MANUAL HAPPY PATH
+# 1. Officer opens an UNDER_REVIEW request, chooses Request more information and
+#    enters a specific question (e.g. "Please clarify why you wish to exit.").
+# 2. Borrower opens the same request: status More Information Required, officer
+#    question visible under Additional Information, editable response form.
+# 3. Borrower enters a clarification and clicks Submit for Review once.
+# 4. Same request becomes UNDER_REVIEW; form disappears; full conversation remains.
+# 5. Assigned officer opens the SAME exit request ID (not just the same borrower).
+#    In an already-open modal, click Refresh Conversation or Refresh Status:
+#    both refresh request status, conversation, list and summary. The reply is
+#    visible and UNDER_REVIEW restores the assigned officer's decision form.
+#    Use the EXISTING decision operation to approve, reject, or request
+#    another round of information. No reassignment step is needed.
+# 6. Only after approval can borrower accept a settlement quote and proceed to
+#    payment/final completion using the existing checks. A grievance resolution
+#    does not automatically approve the request or unlock payment.
+# 7. Original request timing remains unchanged: a timely original submission can
+#    still be reviewed later under existing officer policy; resubmission does not
+#    create a new request or extend the quote/payment deadline.
+# A legacy seeded MORE_INFO_REQUIRED request may have no question audit record.
+# The UI says no specific remarks were recorded and still allows clarification;
+# it does not invent an officer question or create another exit request.
+#
+# NEGATIVE / REPEAT TESTS (run manually)
+# Missing JWT -> 401; officer JWT on borrower POST -> denied.
+# Borrower B reading/responding to Borrower A's request -> 404, no audit/status write.
+# Officer assigned to a different request -> history denied by existing visibility.
+# Empty/whitespace/>1000-character/>1000-byte reply -> 400, unchanged state.
+# Two simultaneous submissions -> one reply + UNDER_REVIEW; the other -> 409.
+# Submission for UNDER_REVIEW/APPROVED/REJECTED/CANCELLED/COMPLETED -> 409.
+# Inactive/closed loan or missing assigned officer -> 409, unchanged state.
+# Request with accepted/paid quote or SUCCESS payment -> 409, bank review needed.
+# Another officer request for information after resubmission -> another genuine
+# question/reply round in chronological history, same request and officer.
+# Keep request A open in the officer modal while the borrower replies to A;
+# Refresh Conversation must show that reply and restore the decision form.
+# Replying to request B must not change A's status or show B's messages in A.
+# Original dates/reason/officer must be identical before and after resubmission;
+# DECIDED_AT is null until the next officer decision. No loan/quote/payment writes.
+# On an uncertain network result, refresh request status before submitting again.
+#
+# READ-ONLY ORACLE CHECKS (paste into SQL Developer; example request 21)
+# SELECT EXIT_REQUEST_ID, LOAN_ID, OFFICER_ID, STATUS, REASON, REQUEST_DATE,
+#        EXPIRY_DATE, DECIDED_AT, CREATED_AT, UPDATED_AT
+# FROM COOLING_OFF_REQUEST WHERE EXIT_REQUEST_ID = 21;
+# SELECT LOG_ID, USER_ID, OFFICER_ID, ACTION, DETAILS, ACTION_TIME
+# FROM AUDIT_LOG WHERE EXIT_REQUEST_ID = 21
+# AND ENTITY_TYPE = 'COOLING_OFF_REQUEST'
+# AND ACTION IN ('COOLING_OFF_MORE_INFO_REQUIRED', 'COOLING_OFF_INFO_SUBMITTED')
+# ORDER BY ACTION_TIME, LOG_ID;
+
+@gateway = http://localhost:8080
+@requestId = 21
+@borrowerToken = REPLACE_WITH_BORROWER_JWT
+@officerToken = REPLACE_WITH_ASSIGNED_LOAN_CLOSURE_OFFICER_JWT
+
+### Borrower: read only the request's clarification conversation
+GET {{gateway}}/api/cooling-off/requests/{{requestId}}/information-history
+Authorization: Bearer {{borrowerToken}}
+
+### Borrower: reply and return the SAME request to UNDER_REVIEW
+POST {{gateway}}/api/cooling-off/requests/{{requestId}}/additional-information
+Authorization: Bearer {{borrowerToken}}
+Content-Type: application/json
+
+{"response": "The planned purchase was cancelled, so I no longer require this loan."}
+
+### Officer: read the clarification and make a decision through the existing UI
+GET {{gateway}}/api/officer/cooling-off/requests/{{requestId}}/information-history
+Authorization: Bearer {{officerToken}}

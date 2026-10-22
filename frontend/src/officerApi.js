@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:8081";
+const API_URL = "http://localhost:8080";
+const AUTH_URL = "http://localhost:8081";
 
 // Portal permissions and dashboard routes.
 // Add matching routes in App.jsx.
@@ -134,7 +135,7 @@ export async function loginOfficer(
   }
 
   const response = await fetch(
-    `${API_URL}/api/auth/officer/login`,
+    `${AUTH_URL}/api/auth/officer/login`,
     {
       method: "POST",
       headers: {
@@ -182,6 +183,13 @@ export function getOfficerDashboard(portal, role) {
 // -----------------------------------------
 // COOLING-OFF REQUESTS
 // -----------------------------------------
+
+export function getOfficerInformationHistory(token, requestId) {
+  return apiRequest(
+    `/api/officer/cooling-off/requests/${encodeURIComponent(requestId)}/information-history`,
+    token
+  );
+}
 
 export function getOfficerRequests(token) {
   return apiRequest(

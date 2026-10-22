@@ -1,0 +1,186 @@
+# CLEAR CLOSE K.1-K.4: MANUAL SETUP / TEST GUIDE
+# Final completion is now connected; final-completion-manual.http supersedes the
+# earlier stage's ACTIVE/APPROVED expectations and dormant completion description.
+# No commands or tests in this guide were executed by the coding agent.
+#
+# AFFECTED APPLICATION
+# Payment handling is inside clearclose-exit-service (8083), so its Kafka producer
+# and exit consumer share one application. No separate payment service was added.
+# Existing audit Kafka code in Grievance/Collateral/AuditService is unchanged.
+# No schema/table migration or REST/security changes are required for Kafka.
+# Only the paid-quote receipt visibility changed in the borrower frontend.
+#
+# CREATED FILES
+# Root: compose.kafka.yml
+# Exit Service Java:
+#   config/KafkaEventConfig.java
+#   events/PaymentEvent.java
+#   events/PaymentEventProducer.java
+#   events/PaymentEventConsumer.java
+#   events/PaymentConfirmationService.java
+#   events/LoanExitCompletedEvent.java
+#   events/LoanExitEventProducer.java
+# Exit Service: kafka-manual.http, kafka-verification.sql
+# MODIFIED FILES
+# Exit Service: pom.xml, src/main/resources/application.properties, .env.example,
+#   payment/PaymentService.java, payment-manual.http, payment-verification.sql
+# Frontend: src/pages/BorrowerDashboard.jsx (receipt stays visible for PAID quotes).
+#
+# TOPICS (declared by NewTopic beans; actually created when KafkaAdmin connects)
+# clearclose.payment.succeeded       key = quoteId, JSON PaymentEvent version 1
+# clearclose.loan-exit.completed     key = loanId, JSON LoanExitCompletedEvent v1
+# clearclose.payment.succeeded.DLT   recoverable invalid/failed consumer messages
+# Defaults: 3 partitions, replication factor 1 (local development only).
+# Source and DLT must have matching partition counts. If reusing larger existing
+# topics, set KAFKA_EVENT_PARTITIONS accordingly. No completion messages are sent.
+#
+# CONFIGURATION (set in the Java process environment/IDE, not Vite)
+# KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+# PAYMENT_EVENT_GROUP=clearclose-exit-payment-v1   (keep stable across restarts)
+# PAYMENT_EVENT_LISTENER_ENABLED=true
+# KAFKA_EVENT_PARTITIONS=3
+# KAFKA_EVENT_REPLICAS=1
+# Spring Boot does not auto-load .env; .env.example is a reference template.
+# Existing Razorpay credentials and JWT settings are not changed by this task.
+#
+# START LOCALLY (PowerShell, manually)
+# Reuse your broker at localhost:9092 if it already exists. Otherwise from root:
+#   docker compose -f compose.kafka.yml up -d
+#   docker compose -f compose.kafka.yml ps
+# This is a single-node KRaft development broker; no ZooKeeper is needed.
+# Data/offsets persist in the named volume. Do not remove that volume for restart tests.
+# Then from backend/clearclose-exit-service:
+#   .\mvnw.cmd compile
+#   .\mvnw.cmd spring-boot:run
+# Or rebuild/restart com.clearclose.exit.ClearcloseExitServiceApplication in IDE.
+# Keep existing discovery/auth/gateway/loan services running as usual.
+# This guide intentionally asks YOU to compile/start; neither was run by the agent.
+#
+# LIST TOPICS (from repository root)
+#   docker compose -f compose.kafka.yml exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list
+# KafkaAdmin declares all three topics at application startup when broker is up.
+# If the app was started before Kafka, restart the app after Kafka is ready or
+# create each topic manually using the following command with its actual name:
+#   docker compose -f compose.kafka.yml exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic clearclose.payment.succeeded --partitions 3 --replication-factor 1
+# Repeat for clearclose.loan-exit.completed and clearclose.payment.succeeded.DLT.
+# If using an existing non-Docker broker, use its bin scripts with localhost:9092.
+#
+# WATCH PAYMENT EVENTS (separate terminal, from repository root)
+#   docker compose -f compose.kafka.yml exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:19092 --topic clearclose.payment.succeeded --from-beginning --property print.key=true --property "key.separator=|"
+# WATCH DLT (same command, --topic clearclose.payment.succeeded.DLT).
+# Inspect DLT headers using --property print.headers=true for failure context.
+# INSPECT COMPLETION TOPIC (must stay empty in ordinary payment flows):
+#   docker compose -f compose.kafka.yml exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:19092 --topic clearclose.loan-exit.completed --from-beginning --timeout-ms 10000
+# A console timeout with no records is expected for the unused completion topic.
+# INSPECT CONSUMER OFFSETS/LAG:
+#   docker compose -f compose.kafka.yml exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:19092 --describe --group clearclose-exit-payment-v1
+#
+# PRODUCER FLOW
+# Existing Razorpay capture verification updates PAYMENT to SUCCESS and writes
+# PAYMENT_VERIFIED. PaymentEventProducer queries the verified DB record, generates
+# UUID eventId and DB UTC occurredAt, then saves PAYMENT_EVENT_READY identity in
+# AUDIT_LOG in that same transaction. A Spring AFTER_COMMIT listener sends JSON.
+# Failed/authorized/unverified payments and rolled-back transactions emit nothing.
+# Repeated verification/status calls on SUCCESS never run the transition again.
+# Topic key is quoteId. Kafka producer idempotence, acks=all, retries=3 and a
+# 15-second delivery deadline bound transient broker retries. max.block.ms=3000
+# bounds waiting for metadata/buffer space on the payment HTTP thread.
+# Publication failure is logged with eventId/paymentId/quoteId, without tokens,
+# signatures, card details or credentials. It cannot roll back a captured payment.
+#
+# CONSUMER FLOW / DUPLICATES
+# Fixed PaymentEvent JSON target; producer type headers are not trusted.
+# Validate type/version, UUID, positive IDs, quoteId message key, INR, amount,
+# timestamp and actual PAYMENT/QUOTE/LOAN/REQUEST joins. Payment must be SUCCESS,
+# have provider ID and CONFIRMED_AT, and match PAYMENT_EVENT_READY identity/time.
+# Lock the request then quote/payment rows, matching existing payment lock order.
+# If PAYMENT_EVENT_CONFIRMED already exists for this payment, return without a
+# second update/audit. Otherwise require APPROVED request + ACTIVE loan, change
+# ACCEPTED quote to PAID, and insert PAYMENT_EVENT_CONFIRMED atomically.
+# A crash after DB commit but before offset commit causes redelivery; the durable
+# audit marker makes it harmless. Other payloads reusing an event ID are rejected
+# unless they match both the original audit identity and verified DB relationships.
+#
+# CONSUMER FAILURES
+# Non-retryable invalid contracts/deserialization go to DLT. Transient processing
+# errors receive 2 retries separated by 2 seconds, then DLT. The DLT send must be
+# broker-confirmed before the source offset can advance. If that send fails, the
+# record remains unacknowledged and recovery is retried; it is not discarded.
+# With RECORD ack mode + auto commit off, normal offsets commit only after the
+# transactional processing method commits. Keep group ID and Kafka data stable.
+# Recovery/DLT replays need operator review; there is no automatic DLT consumer.
+#
+# MANUAL HAPPY PATH
+# 1. Use a fresh active loan and APPROVED request; generate/accept an unexpired quote.
+# 2. Make a Razorpay TEST payment through the existing borrower dashboard.
+# 3. Confirm PAYMENT SUCCESS and PAYMENT_EVENT_READY using kafka-verification.sql.
+# 4. Watch a single PaymentSucceeded and the service log's CONFIRMED result.
+# 5. Oracle should show quote PAID, loan ACTIVE, request APPROVED, and one
+#    PAYMENT_EVENT_CONFIRMED audit. Refresh/reopen the quote to view the paid state.
+# 6. Repeat the same signed verify request: no additional event/audit/payment.
+# 7. Failed/cancelled/invalid-signature/authorized-only attempts must emit no event.
+#
+# DUPLICATE / INCORRECT DATA / MALFORMED TESTS
+# Use kafka-verification.sql to get the original event as one quoteId|JSON line.
+# Save that line locally to payment-event-replay.jsonl (UTF-8, no SQL column labels).
+# From repository root, replay it manually:
+#   Get-Content -LiteralPath .\payment-event-replay.jsonl | docker compose -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka:19092 --topic clearclose.payment.succeeded --property parse.key=true --property "key.separator=|"
+# Repeating it must log DUPLICATE_IGNORED and leave exactly one confirmation audit.
+# For rejection tests, copy that line and change amount, version, payment/quote ID,
+# currency or eventId individually. Each invalid message must go to DLT and leave
+# PAYMENT, quote, loan and request unchanged. Send quoteId|not-json to test malformed
+# JSON; DLT must preserve the original bytes. Never test a dummy LoanExitCompleted.
+# Fix/review the failure cause before replaying a DLT payload to the source topic.
+#
+# FAILURE / RESTART TESTS
+# Because payment + exit share one app, stopping Exit Service also stops payment.
+# To simulate the exit consumer being offline while payment stays available:
+# restart the app with PAYMENT_EVENT_LISTENER_ENABLED=false, make a fresh Test Mode
+# payment, confirm Kafka event and quote still ACCEPTED; restart with true and the
+# SAME group ID, then verify pending event -> PAID exactly once.
+# Stop/restart Kafka with docker compose -f compose.kafka.yml stop kafka / start kafka.
+# Services should reconnect. If a payment was captured during broker downtime,
+# PAYMENT remains SUCCESS. Wait for bounded send failure, then recover as below.
+# Stop/restart the app during consumer processing and verify redelivery is harmless.
+#
+# MANUAL PUBLICATION RECOVERY / LIMITATIONS
+# No transactional outbox existed and none was added. Oracle commit and Kafka
+# acknowledgement are not atomic. A process crash after commit/before sending,
+# or a send failure after retries, can leave SUCCESS with no event in Kafka.
+# The existing audit log preserves identity and time for operator-driven recovery.
+# kafka-verification.sql lists READY rows with no CONFIRMED row and builds exact
+# replay JSON. Review Kafka backlog/DLT first, then replay with the producer command.
+# Broker retries may themselves deliver duplicates; the consumer remains idempotent.
+# Records only survive as long as broker retention/volume and Oracle audit history
+# are retained. No automatic producer retry worker/backfill is implemented.
+# Old SUCCESS payments without READY markers are not automatically published;
+# use fresh test payments or design a separate reviewed legacy backfill.
+# FUTURE PROPOSAL (not applied): a dedicated outbox with unique eventId, payload,
+# status, attempts and created/published timestamps, inserted in the payment DB
+# transaction and drained by a retrying worker. Consumers remain idempotent.
+# This would require an explicit schema migration/review; no table SQL was added.
+#
+# LOAN EXIT COMPLETED -- PREPARED, NOT ACTIVATED
+# LoanExitCompletedEvent + LoanExitEventProducer are configured, with no callers
+# from payment/approval/startup and no listener in LoanAccount/Collateral/Audit.
+# Future prepareAfterFinalCompletion(paymentId) requires a live DB transaction,
+# verified SUCCESS payment, PAID quote, officer decision, COMPLETED request and
+# CLOSED/EXIT_COMPLETED loan already confirmed in Oracle, then publishes after
+# commit with loanId key. It does not perform any of those transitions itself.
+# The future workflow must confirm LoanAccount's update and add durable publication
+# and completion deduplication before wiring this method. Serialization can be
+# inspected/tested locally without sending any completion event to the broker.
+# Loan closure, request completion, NOC and collateral release are not implemented.
+#
+# OFFICIAL REFERENCES
+# https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html
+# https://docs.spring.io/spring-kafka/reference/kafka/serdes.html
+# https://kafka.apache.org/41/getting-started/docker/
+
+@gateway = http://localhost:8080
+@token = REPLACE_WITH_BORROWER_JWT
+@quoteId = 2
+
+### Existing endpoint: inspect the backend-confirmed payment
+POST {{gateway}}/api/payments/quotes/{{quoteId}}/status
+Authorization: Bearer {{token}}
