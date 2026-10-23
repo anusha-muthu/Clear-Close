@@ -40,16 +40,16 @@ public class CollateralReleaseController {
         return releaseService.getAssignedRequests(userId(jwt));
     }
 
-    @PatchMapping("/{requestId}/assign")
-    public CollateralReleaseRequests assign(
-            @PathVariable("requestId") Long requestId,
-            @RequestBody(required = false) Map<String, Long> body,
-            @AuthenticationPrincipal Jwt jwt) {
-        requireOfficer(jwt);
-        if (!"ADMIN".equals(jwt.getClaimAsString("role"))) forbidden();
-        return releaseService.assignRequest(requestId,
-            body == null ? null : body.get("officerId"), userId(jwt));
-    }
+//    @PatchMapping("/{requestId}/assign")
+//    public CollateralReleaseRequests assign(
+//            @PathVariable("requestId") Long requestId,
+//            @RequestBody(required = false) Map<String, Long> body,
+//            @AuthenticationPrincipal Jwt jwt) {
+//        requireOfficer(jwt);
+//        if (!"ADMIN".equals(jwt.getClaimAsString("role"))) forbidden();
+//        return releaseService.assignRequest(requestId,
+//            body == null ? null : body.get("officerId"), userId(jwt));
+//    }
 
     @PatchMapping("/{requestId}/decision")
     public CollateralReleaseRequests decideRequest(
@@ -66,14 +66,14 @@ public class CollateralReleaseController {
         return releaseService.completeRelease(requestId, userId(jwt));
     }
 
-    @GetMapping
-    public List<CollateralReleaseRequests> searchRequests(
-            @RequestParam(name="loanId", required=false) Long loanId,
-            @RequestParam(name="status", required=false) String status,
-            @AuthenticationPrincipal Jwt jwt) {
-        requireAccount(jwt);
-        return releaseService.searchVisibleRequests(loanId, status, userId(jwt), jwt.getClaimAsString("accountType"));
-    }
+//    @GetMapping
+//    public List<CollateralReleaseRequests> searchRequests(
+//            @RequestParam(name="loanId", required=false) Long loanId,
+//            @RequestParam(name="status", required=false) String status,
+//            @AuthenticationPrincipal Jwt jwt) {
+//        requireAccount(jwt);
+//        return releaseService.searchVisibleRequests(loanId, status, userId(jwt), jwt.getClaimAsString("accountType"));
+//    }
 
     @GetMapping("/{id}")
     public CollateralReleaseRequests getRequestById(
@@ -82,32 +82,32 @@ public class CollateralReleaseController {
         return releaseService.getVisibleRequest(id, userId(jwt), jwt.getClaimAsString("accountType"));
     }
 
-    @GetMapping("/loan/{loanId}")
-    public List<CollateralReleaseRequests> getRequestsByLoanId(
-            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
-        requireAccount(jwt);
-        return releaseService.searchVisibleRequests(loanId, null, userId(jwt), jwt.getClaimAsString("accountType"));
-    }
+//    @GetMapping("/loan/{loanId}")
+//    public List<CollateralReleaseRequests> getRequestsByLoanId(
+//            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
+//        requireAccount(jwt);
+//        return releaseService.searchVisibleRequests(loanId, null, userId(jwt), jwt.getClaimAsString("accountType"));
+//    }
 
-    @GetMapping("/user/{targetId}")
-    public List<CollateralReleaseRequests> getRequestsByUserId(
-            @PathVariable("targetId") Long targetId, @AuthenticationPrincipal Jwt jwt) {
-        requireAccount(jwt);
-        if ("BORROWER".equals(jwt.getClaimAsString("accountType")) && userId(jwt).equals(targetId)) {
-            return releaseService.getMyRequests(targetId);
-        }
-        // The service validates ACTIVE admin state before returning all visible rows.
-        if (!"ADMIN".equals(jwt.getClaimAsString("role"))) forbidden();
-        return releaseService.searchVisibleRequests(null, null, userId(jwt), "OFFICER").stream()
-            .filter(r -> targetId.equals(r.getRequestedBy())).toList();
-    }
+//    @GetMapping("/user/{targetId}")
+//    public List<CollateralReleaseRequests> getRequestsByUserId(
+//            @PathVariable("targetId") Long targetId, @AuthenticationPrincipal Jwt jwt) {
+//        requireAccount(jwt);
+//        if ("BORROWER".equals(jwt.getClaimAsString("accountType")) && userId(jwt).equals(targetId)) {
+//            return releaseService.getMyRequests(targetId);
+//        }
+//        // The service validates ACTIVE admin state before returning all visible rows.
+//        if (!"ADMIN".equals(jwt.getClaimAsString("role"))) forbidden();
+//        return releaseService.searchVisibleRequests(null, null, userId(jwt), "OFFICER").stream()
+//            .filter(r -> targetId.equals(r.getRequestedBy())).toList();
+//    }
 
-    @GetMapping("/status/{status}")
-    public List<CollateralReleaseRequests> getRequestsByStatus(
-            @PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
-        requireAccount(jwt);
-        return releaseService.searchVisibleRequests(null, status, userId(jwt), jwt.getClaimAsString("accountType"));
-    }
+//    @GetMapping("/status/{status}")
+//    public List<CollateralReleaseRequests> getRequestsByStatus(
+//            @PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
+//        requireAccount(jwt);
+//        return releaseService.searchVisibleRequests(null, status, userId(jwt), jwt.getClaimAsString("accountType"));
+//    }
 
     private static void forbidden() {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account cannot access this operation");

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
   getAssignedGrievances,
+  getSeniorGrievances,
+  assignGrievance,
   updateAssignedGrievance,
-} from "../officerGrievanceApi";
+} from "../officerGrievanceApi.jsx";
 
 const CATEGORY_LABELS = {
   DELAY: "NOC / collateral processing delay",
@@ -13,15 +15,12 @@ const CATEGORY_LABELS = {
 
 const TRANSITIONS = {
   OPEN: ["IN_PROGRESS", "ESCALATED"],
-  IN_PROGRESS: ["MORE_INFO_REQUIRED", "RESOLVED", "REJECTED", "ESCALATED"],
-  MORE_INFO_REQUIRED: ["IN_PROGRESS", "ESCALATED"],
-  ESCALATED: ["IN_PROGRESS", "MORE_INFO_REQUIRED", "RESOLVED", "REJECTED"],
-  RESOLVED: ["CLOSED"],
-  REJECTED: [],
+  IN_PROGRESS: ["ESCALATED"],
+  ESCALATED: ["IN_PROGRESS", "CLOSED"],
   CLOSED: [],
 };
 
-const STATUSES = ["OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED", "ESCALATED", "RESOLVED", "REJECTED", "CLOSED"];
+const STATUSES = ["OPEN", "IN_PROGRESS", "ESCALATED", "CLOSED"];
 const label = (value) => String(value || "Unknown").replaceAll("_", " ");
 const time = (value) => value ? new Date(value).toLocaleString() : "Not available";
 const field = "w-full rounded-xl border border-[#dfe5df] bg-white px-4 py-3 text-sm";
@@ -46,31 +45,76 @@ export default function GrievanceOfficerDashboard({ session }) {
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
   const mutation = useRef(null);
+  const busy = useRef(false);
+  const listController = useRef(null);
+  const listVersion = useRef(0);
+  const [targetOfficerId, setTargetOfficerId] = useState("");
+  const role = session?.role;
+  const isSenior = role === "SENIOR_GRIEVANCE_OFFICER";
+  const ownsSelected = selectedId != null && tickets.some((ticket) =>
+    String(ticket.grievanceId) === String(selectedId) &&
+    String(ticket.assignedTo) === String(session?.userId));
   const token = session?.token;
   const accountType = session?.accountType;
   const userId = session?.userId;
   const selected = tickets.find((ticket) => ticket.grievanceId === selectedId);
 
   useEffect(() => {
-    const controller = new AbortController();
+    setTickets([]); setSelectedId(null); setError(""); setNotice("");
+  }, [token, accountType, userId, role]);
+
+  useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError("");
-    setTickets([]);
-    setSelectedId(null);
-    getAssignedGrievances({ token, accountType, userId }, controller.signal)
-      .then((rows) => { if (active) setTickets(rows); })
-      .catch((err) => { if (active && err.name !== "AbortError") setError(err.message); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; controller.abort(); };
-  }, [token, accountType, userId, refresh]);
+    const authorized = Boolean(token && accountType === "OFFICER");
+    async function loadTickets() {
+      if (!active || busy.current) return;
+      if (!authorized) {
+        setTickets([]); setLoading(false); setError("Sign in with an officer account.");
+        return;
+      }
+      listController.current?.abort();
+      const controller = new AbortController(); listController.current = controller;
+      const version = ++listVersion.current;
+      setLoading(true); setError("");
+      try {
+        const load = isSenior ? getSeniorGrievances : getAssignedGrievances;
+        const rows = await load({ token, accountType, userId, role }, controller.signal);
+        if (!active || controller.signal.aborted || version !== listVersion.current || busy.current) return;
+        if (!Array.isArray(rows)) throw new Error("Unexpected grievance queue response.");
+        setTickets(rows);
+        setSelectedId((previous) => rows.some((row) => String(row.grievanceId) === String(previous)) ? previous : null);
+      } catch (err) {
+        if (active && !controller.signal.aborted && version === listVersion.current) setError(err.message);
+      } finally {
+        if (active && version === listVersion.current) setLoading(false);
+      }
+    }
+    loadTickets();
+    // Update an already-open senior dashboard after another officer escalates.
+    const timer = setInterval(() => {
+      if (!document.hidden) loadTickets();
+    }, 10000);
+    const onFocus = () => { if (!document.hidden) loadTickets(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      active = false; listController.current?.abort();
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [token, accountType, userId, role, isSenior, refresh]);
 
   useEffect(() => {
     setNextStatus("");
     setRemarks("");
+    setTargetOfficerId("");
   }, [selectedId, selected?.status]);
 
-  useEffect(() => () => mutation.current?.abort(), [token, accountType, userId]);
+  useEffect(() => {
+    setSaving(false);
+    return () => { mutation.current?.abort(); busy.current = false; };
+  }, [token, accountType, userId, role]);
 
   const query = search.trim().toLowerCase();
   const visible = tickets.filter((ticket) =>
@@ -82,13 +126,15 @@ export default function GrievanceOfficerDashboard({ session }) {
 
   async function save(event) {
     event.preventDefault();
-    if (saving || !selected) return;
-    if (!nextStatus || !remarks.trim()) {
+    if (busy.current || !selected || !ownsSelected) return;
+    if (!(TRANSITIONS[selected.status] || []).includes(nextStatus) || !remarks.trim()) {
       setError("Choose a status and enter action remarks.");
       return;
     }
     const controller = new AbortController();
     mutation.current = controller;
+    busy.current = true;
+    listController.current?.abort(); ++listVersion.current; setLoading(false);
     setSaving(true);
     setError("");
     setNotice("");
@@ -99,20 +145,61 @@ export default function GrievanceOfficerDashboard({ session }) {
         remarks: remarks.trim(),
       }, controller.signal);
       if (controller.signal.aborted) return;
-      setTickets((rows) => rows.map((row) => row.grievanceId === updated.grievanceId ? updated : row));
+      setTickets((rows) => rows.flatMap((row) => {
+        if (String(row.grievanceId) !== String(updated.grievanceId)) return [row];
+        const inQueue = isSenior
+          ? updated.status === "ESCALATED" || String(updated.assignedTo) === String(userId) ||
+            (updated.assignedTo == null && !["RESOLVED", "REJECTED", "CLOSED"].includes(updated.status))
+          : String(updated.assignedTo) === String(userId);
+        return inQueue ? [updated] : [];
+      }));
       setNextStatus("");
       setRemarks("");
-      setNotice("Grievance updated.");
+      setNotice(updated.status === "ESCALATED"
+        ? "Grievance escalated. The senior queue will update automatically."
+        : "Grievance updated.");
+      setRefresh((value) => value + 1);
     } catch (err) {
       if (err.name !== "AbortError") setError(err.message);
     } finally {
-      if (!controller.signal.aborted) setSaving(false);
+      if (mutation.current === controller) {
+        busy.current = false;
+        if (!controller.signal.aborted) setSaving(false);
+      }
+    }
+  }
+
+  async function saveAssignment(event) {
+    event.preventDefault();
+    if (busy.current || !selected || !isSenior) return;
+    const controller = new AbortController();
+    mutation.current = controller; busy.current = true;
+    listController.current?.abort(); ++listVersion.current; setLoading(false);
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const updated = await assignGrievance(session, selected.grievanceId, targetOfficerId, controller.signal);
+      if (controller.signal.aborted) return;
+      setTickets((rows) => rows.flatMap((row) => {
+        if (String(row.grievanceId) !== String(updated.grievanceId)) return [row];
+        return updated.status === "ESCALATED" || String(updated.assignedTo) === String(userId)
+          ? [updated] : [];
+      }));
+      setTargetOfficerId("");
+      setNotice(`Grievance #${updated.grievanceId} assigned to officer #${updated.assignedTo}.`);
+      setRefresh((value) => value + 1);
+    } catch (err) {
+      if (!controller.signal.aborted) setError(err.message);
+    } finally {
+      if (mutation.current === controller) {
+        busy.current = false;
+        if (!controller.signal.aborted) setSaving(false);
+      }
     }
   }
 
   const availableActions = TRANSITIONS[selected?.status] || [];
   const metrics = [
-    ["Assigned to you", tickets.length],
+    [isSenior ? "Senior review queue" : "Assigned to you", tickets.length],
     ["Open", tickets.filter((t) => t.status === "OPEN").length],
     ["In progress", tickets.filter((t) => t.status === "IN_PROGRESS").length],
     ["Escalated", tickets.filter((t) => t.status === "ESCALATED").length],
@@ -123,9 +210,9 @@ export default function GrievanceOfficerDashboard({ session }) {
       <header className="mx-auto mb-8 flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b pb-6">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-lime-700">Bank Employee Portal</p>
-          <h1 className="mt-2 text-4xl" style={{ fontFamily: "'Playfair Display', serif" }}>Assigned Grievances</h1>
-          <p className="mt-2 text-sm text-gray-600">Review customer complaints assigned to you and record your actions.</p>
-          <p className="mt-2 text-xs text-gray-500">{session?.username} Â· {label(session?.role)}</p>
+          <h1 className="mt-2 text-4xl" style={{ fontFamily: "'Playfair Display', serif" }}>{isSenior ? "Grievance Review & Assignment" : "Assigned Grievances"}</h1>
+          <p className="mt-2 text-sm text-gray-600">{isSenior ? "Review escalated or unassigned complaints and assign the responsible officer." : "Review customer complaints assigned to you and record your actions."}</p>
+          <p className="mt-2 text-xs text-gray-500">{session?.username} · {label(session?.role)}</p>
         </div>
         <button type="button" disabled={loading || saving} onClick={() => { setNotice(""); setRefresh((v) => v + 1); }} className="rounded-full border bg-white px-5 py-3 text-sm disabled:opacity-50">Refresh</button>
       </header>
@@ -134,7 +221,7 @@ export default function GrievanceOfficerDashboard({ session }) {
       {notice && <p role="status" className="mx-auto mb-5 max-w-7xl rounded-xl bg-lime-50 p-4 text-sm text-lime-800">{notice}</p>}
 
       <section aria-label="Assignment statistics" className="mx-auto mb-8 grid max-w-7xl grid-cols-2 gap-4 md:grid-cols-4">
-        {metrics.map(([name, value]) => <div key={name} className="rounded-2xl border bg-white p-5"><p className="text-sm text-gray-500">{name}</p><p className="mt-2 text-3xl font-bold">{value}</p></div>)}
+        {metrics.map(([name, value]) => <div key={name} className="rounded-2xl border bg-white p-5"><p className="text-sm text-gray-500">{name}</p><p className="mt-2 text-3xl font-bold">{(loading || error) && !tickets.length ? "—" : value}</p></div>)}
       </section>
 
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-3">
@@ -148,16 +235,16 @@ export default function GrievanceOfficerDashboard({ session }) {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="p-4">Complaint</th><th className="p-4">Customer / loan</th><th className="p-4">Status</th></tr></thead>
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="p-4">Complaint</th><th className="p-4">Customer / loan</th><th className="p-4">Status / officer</th></tr></thead>
               <tbody>
                 {visible.map((ticket) => <tr key={ticket.grievanceId} className={`border-t ${selectedId === ticket.grievanceId ? "bg-lime-50" : ""}`}>
                   <td className="p-4"><button type="button" disabled={saving} onClick={() => setSelectedId(ticket.grievanceId)} className="font-bold underline">#{ticket.grievanceId}</button><p className="mt-1 text-xs text-gray-500">{CATEGORY_LABELS[ticket.category] || ticket.category}</p></td>
                   <td className="p-4">{ticket.borrowerName || `Borrower #${ticket.borrowerId}`}<p className="mt-1 text-xs text-gray-500">{ticket.loanReference || ticket.loanAccountId}</p></td>
-                  <td className="p-4"><Badge status={ticket.status} /></td>
+                  <td className="p-4"><Badge status={ticket.status} /><p className="mt-2 text-xs text-gray-500">{ticket.assignedTo == null ? "Unassigned" : `Officer #${ticket.assignedTo}`}</p></td>
                 </tr>)}
               </tbody>
             </table>
-            {!visible.length && <p className="p-10 text-center text-sm text-gray-500">{loading ? "Loading assigned complaintsâ€¦" : error ? "Unable to load grievances. Refresh after resolving the error." : "No assigned grievances match this view."}</p>}
+            {!visible.length && <p className="p-10 text-center text-sm text-gray-500">{loading ? "Loading assigned complaints..." : error ? "Unable to load grievances. Refresh after resolving the error." : "No assigned grievances match this view."}</p>}
           </div>
         </section>
 
@@ -174,7 +261,18 @@ export default function GrievanceOfficerDashboard({ session }) {
               <div><dt className="text-gray-500">Last updated</dt><dd>{time(selected.updatedAt)}</dd></div>
               <div><dt className="text-gray-500">Last action remarks</dt><dd className="whitespace-pre-wrap break-words">{selected.resolutionRemarks || "No remarks recorded."}</dd></div>
             </dl>
-            {availableActions.length ? <form onSubmit={save} className="mt-6 space-y-4 border-t pt-5">
+            {isSenior && !["RESOLVED", "REJECTED", "CLOSED"].includes(selected.status) && (
+              <form onSubmit={saveAssignment} className="mt-6 space-y-4 border-t pt-5">
+                <h3 className="font-bold">Assign / reassign officer</h3>
+                <p className="text-sm text-gray-600">Choose an active category officer or senior grievance officer. DELAY: collateral; SETTLEMENT: loan closure; SYSTEM / OTHER: grievance.</p>
+                <p className="text-xs text-gray-500">Assignment preserves the complaint status. The assigned officer can record the next action.</p>
+                <label className="block text-sm font-semibold">Officer ID
+                  <input type="number" min="1" step="1" required disabled={saving} value={targetOfficerId} onChange={(e) => setTargetOfficerId(e.target.value)} className={`${field} mt-2`} />
+                </label>
+                <button type="submit" disabled={saving || !targetOfficerId} className="w-full rounded-full bg-black px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving..." : "Save assignment"}</button>
+              </form>
+            )}
+            {ownsSelected ? (availableActions.length ? <form onSubmit={save} className="mt-6 space-y-4 border-t pt-5">
               <label className="block text-sm font-semibold">Update status
                 <select required disabled={saving} className={`${field} mt-2`} value={nextStatus} onChange={(e) => setNextStatus(e.target.value)}>
                   <option value="">Choose an action</option>
@@ -184,8 +282,8 @@ export default function GrievanceOfficerDashboard({ session }) {
               <label className="block text-sm font-semibold">Action remarks
                 <textarea required disabled={saving} maxLength={1000} rows={4} className={`${field} mt-2`} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
               </label>
-              <button disabled={saving} type="submit" className="w-full rounded-full bg-black px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Savingâ€¦" : "Save action"}</button>
-            </form> : <p className="mt-6 text-sm text-gray-500">No further officer actions are available for this status.</p>}
+              <button disabled={saving} type="submit" className="w-full rounded-full bg-black px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving..." : "Save action"}</button>
+            </form> : <p className="mt-6 text-sm text-gray-500">No further officer actions are available for this status.</p>) : <p className="mt-5 text-sm text-gray-500">Status updates are available to the assigned officer. Assign this complaint to yourself to review it personally.</p>}
           </>}
         </aside>
       </div>

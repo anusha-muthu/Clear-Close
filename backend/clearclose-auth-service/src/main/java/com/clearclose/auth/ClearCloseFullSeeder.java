@@ -459,10 +459,11 @@ public class ClearCloseFullSeeder {
                 INSERT INTO COLLATERAL
                 (COLLATERAL_ID, LOAN_ACCOUNT_ID,
                  COLLATERAL_TYPE, DESCRIPTION,
-                 CUSTODIAN, RELEASE_STATUS)
+                 FILE_NAME, STORAGE_PATH, CUSTODIAN, RELEASE_STATUS)
                 VALUES
                 (12101, 4103, 'VEHICLE',
                  'Demo vehicle registration documents',
+                 'demo-vehicle-documents.pdf', 'demo/collateral/demo-vehicle-documents.pdf',
                  'Loan Operations', 'RELEASED')
                 """
             );

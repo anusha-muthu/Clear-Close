@@ -2,6 +2,8 @@
 
 # Ignore application logs
 *.log
+backend/clearclose-exit-service/processing-fee-manual.md
+backend/Grievance/mylogs/grievance.log.2026-10-21.0.gz
 
 # Local credentials (templates contain placeholders only)
 .env

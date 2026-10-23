@@ -21,6 +21,9 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class GrievanceService {
     private final GrievancesRepository grievanceRepository;
@@ -169,11 +172,19 @@ public class GrievanceService {
 
         saveHistory(saved.getGrievanceId(), null, "OPEN", "Grievance submitted by borrower", actorId, "BORROWER");
         publishAudit(saved, "GRIEVANCE_SUBMITTED", null);
-        if (saved.getAssignedTo() != null) {
-            saveHistory(saved.getGrievanceId(), "OPEN", "OPEN",
-                "Auto-assigned by category to officer " + saved.getAssignedTo(), null, "SYSTEM");
-            publishAudit(saved, "GRIEVANCE_AUTO_ASSIGNED", null);
+        if (saved.getAssignedTo() == null) {
+            saved.setStatus("ESCALATED");
+            boolean handedOff = assignSeniorForEscalation(saved);
+            saved.setUpdatedAt(LocalDateTime.now());
+            saved = grievanceRepository.save(saved);
+            saveHistory(saved.getGrievanceId(), "OPEN", "ESCALATED",
+                handedOff
+                    ? "No active category officer available; escalated to senior officer " + saved.getAssignedTo()
+                    : "No active category or senior officer available; awaiting senior assignment",
+                null, "SYSTEM");
+            publishAudit(saved, "GRIEVANCE_ESCALATED_NO_CATEGORY_OFFICER", null);
         }
+
         return saved;
     }
 
@@ -205,24 +216,106 @@ public class GrievanceService {
     }
 
     @Transactional
-    public Grievances assignGrievance(Long grievanceId, Long officerId, Long actionBy, String actorType) {
-        requireAdmin(actionBy, actorType);
+    public Grievances assignGrievance(
+            Long grievanceId, Long officerId, Long actionBy, String actorType) {
+        Officer senior = requireSenior(actionBy, actorType);
         Grievances grievance = lockedGrievance(grievanceId);
+        if (Objects.equals(senior.borrowerId(), grievance.getBorrowerId())) {
+            throw error(HttpStatus.FORBIDDEN, "An officer cannot review their own borrower grievance");
+        }
+        if (!isSeniorQueueItem(grievance, actionBy)) {
+            throw error(HttpStatus.FORBIDDEN, "Only escalated, unassigned or your own assigned grievances can be reassigned");
+        }
+        if (List.of("RESOLVED", "REJECTED", "CLOSED").contains(grievance.getStatus())) {
+            throw error(HttpStatus.CONFLICT, "A completed grievance cannot be reassigned");
+        }
         Officer target = activeOfficer(officerId);
         if (Objects.equals(target.borrowerId(), grievance.getBorrowerId())) {
             throw error(HttpStatus.FORBIDDEN, "An officer cannot review their own borrower grievance");
         }
-        String requiredRole = GrievancePolicy.roleForCategory(grievance.getCategory());
-        if (!target.role().equals(requiredRole) && !"ADMIN".equals(target.role())) {
-            throw error(HttpStatus.BAD_REQUEST, "This category requires " + requiredRole + " or ADMIN");
+        String categoryRole = GrievancePolicy.roleForCategory(grievance.getCategory());
+        if (!categoryRole.equals(target.role())
+                && !"SENIOR_GRIEVANCE_OFFICER".equals(target.role())) {
+            throw error(HttpStatus.BAD_REQUEST,
+                "This category requires " + categoryRole + " or SENIOR_GRIEVANCE_OFFICER");
+        }
+        Long previousOfficer = grievance.getAssignedTo();
+        if (Objects.equals(previousOfficer, officerId)) {
+            return grievance;
         }
         grievance.setAssignedTo(officerId);
         grievance.setUpdatedAt(LocalDateTime.now());
         Grievances saved = grievanceRepository.save(grievance);
         saveHistory(grievanceId, saved.getStatus(), saved.getStatus(),
-            "Assigned to officer " + officerId, actionBy, "OFFICER");
+            "Senior officer reassigned from " + previousOfficer + " to " + officerId,
+            actionBy, "OFFICER");
         publishAudit(saved, "GRIEVANCE_ASSIGNED", actionBy);
         return saved;
+    }
+    
+    private boolean assignSeniorForEscalation(
+            Grievances grievance) {
+
+        List<?> officers = entityManager.createNativeQuery("""
+            SELECT o.OFFICER_ID
+            FROM OFFICER o
+            WHERE o.ROLE = 'SENIOR_GRIEVANCE_OFFICER'
+              AND o.ACCOUNT_STATUS = 'ACTIVE'
+              AND (
+                  o.USER_ID IS NULL
+                  OR o.USER_ID <> :borrowerId
+              )
+            ORDER BY (
+                SELECT COUNT(*)
+                FROM GRIEVANCES g
+                WHERE g.ASSIGNED_TO = o.OFFICER_ID
+                  AND g.STATUS NOT IN (
+                      'RESOLVED', 'REJECTED', 'CLOSED'
+                  )
+            ), o.OFFICER_ID
+            """)
+            .setParameter(
+                "borrowerId",
+                grievance.getBorrowerId()
+            )
+            .setMaxResults(1)
+            .getResultList();
+
+        if (officers.isEmpty()) {
+            // Keep the current assignment until an administrator
+            // assigns an available senior officer.
+            return false;
+        }
+
+        Long seniorId =
+            ((Number) officers.get(0)).longValue();
+
+        grievance.setAssignedTo(seniorId);
+        return true;
+    }
+    private Officer requireSenior(Long actorId, String actorType) {
+        requireActor(actorId, actorType, "OFFICER");
+        Officer actor = activeOfficer(actorId);
+        if (!"SENIOR_GRIEVANCE_OFFICER".equals(actor.role())) {
+            throw error(HttpStatus.FORBIDDEN, "Only a senior grievance officer can assign grievances");
+        }
+        return actor;
+    }
+
+    private boolean isSeniorQueueItem(Grievances grievance, Long seniorId) {
+        return Objects.equals(seniorId, grievance.getAssignedTo())
+            || "ESCALATED".equals(grievance.getStatus())
+            || (grievance.getAssignedTo() == null
+                && !List.of("RESOLVED", "REJECTED", "CLOSED").contains(grievance.getStatus()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Grievances> getSeniorQueue(Long actorId, String actorType) {
+        Officer senior = requireSenior(actorId, actorType);
+        return grievanceRepository.findAll().stream()
+            .filter(g -> !Objects.equals(senior.borrowerId(), g.getBorrowerId()))
+            .filter(g -> isSeniorQueueItem(g, actorId))
+            .toList();
     }
 
     @Transactional
@@ -254,6 +347,9 @@ public class GrievanceService {
             throw error(HttpStatus.BAD_REQUEST, "Action remarks must contain 1 to 1000 characters");
         }
         grievance.setStatus(normalizedStatus);
+        if ("ESCALATED".equals(normalizedStatus)) {
+            assignSeniorForEscalation(grievance);
+        }
         grievance.setResolutionRemarks(actionRemarks);
         grievance.setUpdatedAt(LocalDateTime.now());
         Grievances saved = grievanceRepository.save(grievance);
@@ -291,14 +387,23 @@ public class GrievanceService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusDays(5);
         List<?> candidates = entityManager.createNativeQuery("""
-            SELECT GRIEVANCE_ID FROM GRIEVANCES
-            WHERE CREATED_AT < :cutoff
-              AND STATUS IN ('OPEN', 'IN_PROGRESS', 'MORE_INFO_REQUIRED')
-            ORDER BY CREATED_AT, GRIEVANCE_ID
+            SELECT g.GRIEVANCE_ID FROM GRIEVANCES g
+			WHERE g.CREATED_AT < :cutoff
+			  AND g.STATUS IN ('OPEN', 'IN_PROGRESS', 'MORE_INFO_REQUIRED')
+			  AND NOT EXISTS (
+			      SELECT 1 FROM GRIEVANCES_HISTORY h
+			      WHERE h.GRIEVANCE_ID = g.GRIEVANCE_ID
+			        AND h.NEW_STATUS = 'ESCALATED'
+			  )
+			ORDER BY g.CREATED_AT, g.GRIEVANCE_ID
+
             """).setParameter("cutoff", Timestamp.valueOf(cutoff))
             .setMaxResults(100)
             .getResultList();
-
+        log.info(
+        	    "Escalation check: now={}, cutoff={}, candidates={}",
+        	    now, cutoff, candidates
+        	);
         int changed = 0;
         for (Object candidate : candidates) {
             // Lock and refresh: another instance or officer may have handled it
@@ -308,6 +413,7 @@ public class GrievanceService {
                     grievance.getStatus(), grievance.getCreatedAt(), now)) continue;
             String oldStatus = grievance.getStatus();
             grievance.setStatus("ESCALATED");
+            assignSeniorForEscalation(grievance);
             grievance.setUpdatedAt(now);
             // Keep assignee and officer remarks. The system action goes in history.
             Grievances saved = grievanceRepository.save(grievance);
@@ -339,4 +445,7 @@ public class GrievanceService {
         history.setActorType(actorType);
         historyRepository.save(history);
     }
+    
+    private static final Logger log =
+    	    LoggerFactory.getLogger(GrievanceService.class);
 }

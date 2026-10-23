@@ -41,9 +41,11 @@ public class GrievanceController {
     //-------------- View all grievances
     @GetMapping
     public List<Grievances> getAll(@AuthenticationPrincipal Jwt jwt) {
-        requireAdmin(jwt);
-        return grievanceService.getAllGrievances();
+        requireSenior(jwt);
+        return grievanceService.getSeniorQueue(
+            requireUserId(jwt), jwt.getClaimAsString("accountType"));
     }
+
 
     //--------------- View one grievance
     @GetMapping("/{id}")
@@ -92,18 +94,16 @@ public class GrievanceController {
             @PathVariable("id") Long id,
             @RequestBody Map<String, Long> body,
             @AuthenticationPrincipal Jwt jwt) {
-
-        requireAdmin(jwt);
-        if (body.get("officerId") == null || body.get("officerId") <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A valid officerId is required");
+        requireSenior(jwt);
+        Long targetId = body.get("officerId");
+        if (targetId == null || targetId <= 0) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "A valid officerId is required");
         }
         return grievanceService.assignGrievance(
-            id,
-            body.get("officerId"),
-            requireUserId(jwt),
-            jwt.getClaimAsString("accountType")
-        );
+            id, targetId, requireUserId(jwt), jwt.getClaimAsString("accountType"));
     }
+
 
     //-------------------- Update grievance status
     @PatchMapping("/{id}/status")
@@ -137,21 +137,21 @@ public class GrievanceController {
         return grievanceService.getHistory(id);
     }
     
-    //---------------Filter grievances by status
-    @GetMapping("/status/{status}")
-    public List<Grievances> getByStatus(@PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
-        requireAdmin(jwt);
-        return grievanceService.getByStatus(status);
-    }
-
-
-    // --------------Find grievances related to the loan id 
-    @GetMapping("/loan/{loanId}")
-    public List<Grievances> getByLoanId(
-            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
-        requireAdmin(jwt);
-        return grievanceService.getByLoanId(loanId);
-    }
+//    //---------------Filter grievances by status
+//    @GetMapping("/status/{status}")
+//    public List<Grievances> getByStatus(@PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
+//        requireAdmin(jwt);
+//        return grievanceService.getByStatus(status);
+//    }
+//
+//
+//    // --------------Find grievances related to the loan id 
+//    @GetMapping("/loan/{loanId}")
+//    public List<Grievances> getByLoanId(
+//            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
+//        requireAdmin(jwt);
+//        return grievanceService.getByLoanId(loanId);
+//    }
 
     // -------------------Find grievances exceeding the window
     @GetMapping("/overdue")
@@ -161,7 +161,7 @@ public class GrievanceController {
     }
 
     private static final Set<String> OFFICER_ROLES = Set.of(
-            "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN");
+            "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER");
 
     private Long requireUserId(Jwt jwt) {
         if (jwt == null) {
@@ -228,4 +228,15 @@ public class GrievanceController {
         return jwt != null && "OFFICER".equals(jwt.getClaimAsString("accountType"))
                 && "ADMIN".equals(jwt.getClaimAsString("role"));
     }
+    
+
+	private void requireSenior(Jwt jwt) {
+	    requireOfficer(jwt);
+	    if (!"SENIOR_GRIEVANCE_OFFICER".equals(jwt.getClaimAsString("role"))) {
+	        throw new ResponseStatusException(
+	            HttpStatus.FORBIDDEN, "A senior grievance officer is required");
+	    }
 }
+
+}
+

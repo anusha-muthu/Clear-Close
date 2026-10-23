@@ -9,7 +9,7 @@ public final class GrievancePolicy {
     private GrievancePolicy() {}
 
     public static final Set<String> OFFICER_ROLES = Set.of(
-        "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN"
+        "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER"
     );
 
     public static final Set<String> STATUSES = Set.of(

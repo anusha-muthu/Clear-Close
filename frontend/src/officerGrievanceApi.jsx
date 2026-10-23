@@ -55,3 +55,31 @@ export function updateAssignedGrievance(session, grievanceId, change, signal) {
     signal,
   });
 }
+
+export async function getSeniorGrievances(session, signal) {
+  if (session?.role !== "SENIOR_GRIEVANCE_OFFICER") {
+    throw new Error("A senior grievance officer account is required.");
+  }
+  const data = await request(session, BASE, { signal });
+  if (!Array.isArray(data)) throw new Error("Unexpected senior grievance queue response.");
+  return data;
+}
+
+export async function assignGrievance(session, grievanceId, officerId, signal) {
+  if (session?.role !== "SENIOR_GRIEVANCE_OFFICER") {
+    throw new Error("Only a senior grievance officer can assign grievances.");
+  }
+  const grievance = Number(grievanceId);
+  const officer = Number(officerId);
+  if (!Number.isSafeInteger(grievance) || grievance <= 0 ||
+      !Number.isSafeInteger(officer) || officer <= 0) {
+    throw new Error("Enter valid grievance and officer IDs.");
+  }
+  const data = await request(session, `${BASE}/${grievance}/assign`, {
+    method: "PATCH", body: JSON.stringify({ officerId: officer }), signal,
+  });
+  if (String(data?.grievanceId) !== String(grievance)) {
+    throw new Error("Unexpected assignment response. Refresh to verify before retrying.");
+  }
+  return data;
+}
