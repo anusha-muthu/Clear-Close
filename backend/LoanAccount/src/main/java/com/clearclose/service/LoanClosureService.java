@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class CoolingOffLoanClosureService {
+public class LoanClosureService {
     private final JdbcTemplate jdbc;
-    public CoolingOffLoanClosureService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public LoanClosureService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     public record ClosureRequest(Long paymentId, Long quoteId, Long exitRequestId) {}
     public record ClosureResult(long loanId, long paymentId, long quoteId, long exitRequestId,
             String loanStatus, BigDecimal outstandingAmount, LocalDateTime closureDate) {}
@@ -102,5 +102,82 @@ public class CoolingOffLoanClosureService {
             Timestamp.class, loanId).toLocalDateTime();
         return new ClosureResult(loanId, request.paymentId(), request.quoteId(), request.exitRequestId(),
             "CLOSED", BigDecimal.ZERO, closedAt);
+    }
+
+    // Foreclosure: shared ownership of LOAN_ACCOUNT, with its own workflow validation.
+    public record PreClosureRequest(Long paymentId, Long quoteId, Long closureRequestId) {}
+    public record PreClosureResult(long loanId, long paymentId, long quoteId, long closureRequestId,
+            String loanStatus, BigDecimal outstandingAmount, LocalDateTime closureDate) {}
+    private record PreClosureState(long borrowerId, String loanStatus, String requestStatus,
+            BigDecimal outstanding, BigDecimal principal, BigDecimal amount, BigDecimal total, LocalDateTime closedAt, boolean verified) {}
+
+    @Transactional
+    public PreClosureResult closePreClosure(Long loanId, PreClosureRequest request) {
+        if (!positive(loanId) || request == null || !positive(request.paymentId())
+                || !positive(request.quoteId()) || !positive(request.closureRequestId()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valid workflow IDs are required");
+        var locked = jdbc.queryForList("""
+            SELECT CLOSURE_REQUEST_ID FROM LOAN_CLOSURE_REQUEST WHERE CLOSURE_REQUEST_ID = ?
+              AND LOAN_ID = ? AND CLOSURE_TYPE = 'FORECLOSURE' FOR UPDATE
+            """, Long.class, request.closureRequestId(), loanId);
+        if (locked.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pre-closure not found");
+        var rows = jdbc.query("""
+            SELECT l.BORROWER_ID, l.LOAN_STATUS, l.OUTSTANDING_AMOUNT, l.CLOSURE_DATE,
+                   c.STATUS AS REQUEST_STATUS, p.AMOUNT, q.TOTAL_AMOUNT, q.PRINCIPAL_AMOUNT,
+                   CASE WHEN p.PAYMENT_STATUS = 'SUCCESS' AND p.RAZORPAY_PAYMENT_ID IS NOT NULL
+                     AND p.CONFIRMED_AT IS NOT NULL AND q.QUOTE_STATUS = 'PAID'
+                     AND q.ACCEPTED_AT IS NOT NULL AND c.OFFICER_ID IS NOT NULL THEN 1 ELSE 0 END AS VERIFIED
+            FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            JOIN SETTLEMENT_QUOTE q ON q.CLOSURE_REQUEST_ID = c.CLOSURE_REQUEST_ID AND q.LOAN_ID = l.LOAN_ID
+            JOIN PAYMENT p ON p.QUOTE_ID = q.QUOTE_ID
+            WHERE c.CLOSURE_REQUEST_ID = ? AND l.LOAN_ID = ? AND q.QUOTE_ID = ? AND p.PAYMENT_ID = ?
+              AND q.QUOTE_TYPE = 'CLOSURE'
+            FOR UPDATE OF l.LOAN_STATUS, q.QUOTE_STATUS, p.PAYMENT_STATUS
+            """, (rs, n) -> {
+                Timestamp closed = rs.getTimestamp("CLOSURE_DATE");
+                return new PreClosureState(rs.getLong("BORROWER_ID"), rs.getString("LOAN_STATUS"), rs.getString("REQUEST_STATUS"),
+                    rs.getBigDecimal("OUTSTANDING_AMOUNT"), rs.getBigDecimal("PRINCIPAL_AMOUNT"), rs.getBigDecimal("AMOUNT"), rs.getBigDecimal("TOTAL_AMOUNT"),
+                    closed == null ? null : closed.toLocalDateTime(), rs.getInt("VERIFIED") == 1);
+            }, request.closureRequestId(), loanId, request.quoteId(), request.paymentId());
+        if (rows.size() != 1) throw conflict("Payment does not belong to this pre-closure");
+        PreClosureState state = rows.getFirst();
+        if (!state.verified() || state.amount().signum() <= 0 || state.amount().compareTo(state.total()) != 0)
+            throw conflict("Verified full payment and accepted quotation are required");
+        Integer approved = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM AUDIT_LOG a JOIN LOAN_CLOSURE_REQUEST c ON c.CLOSURE_REQUEST_ID = a.CLOSURE_REQUEST_ID
+            WHERE a.CLOSURE_REQUEST_ID = ? AND a.ACTION = 'PRE_CLOSURE_APPROVED' AND a.OFFICER_ID = c.OFFICER_ID
+            """, Integer.class, request.closureRequestId());
+        Integer verified = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM AUDIT_LOG WHERE PAYMENT_ID = ? AND QUOTE_ID = ? AND CLOSURE_REQUEST_ID = ?
+              AND ACTION = 'PRE_CLOSURE_PAYMENT_VERIFIED'
+            """, Integer.class, request.paymentId(), request.quoteId(), request.closureRequestId());
+        if (approved == null || approved != 1 || verified == null || verified != 1)
+            throw conflict("Recorded officer approval and payment verification are required");
+        Integer marker = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM AUDIT_LOG WHERE PAYMENT_ID = ? AND QUOTE_ID = ? AND CLOSURE_REQUEST_ID = ?
+              AND ACTION = 'PRE_CLOSURE_LOAN_CLOSED'
+            """, Integer.class, request.paymentId(), request.quoteId(), request.closureRequestId());
+        if ("CLOSED".equals(state.loanStatus())) {
+            if (!("COMPLETED".equals(state.requestStatus()) || "PAYMENT_PENDING".equals(state.requestStatus())) || marker == null || marker != 1
+                    || state.outstanding().signum() != 0 || state.closedAt() == null)
+                throw conflict("Loan was closed through a different workflow");
+            return new PreClosureResult(loanId, request.paymentId(), request.quoteId(), request.closureRequestId(),
+                "CLOSED", state.outstanding(), state.closedAt());
+        }
+        if (!"ACTIVE".equals(state.loanStatus()) || !"PAYMENT_PENDING".equals(state.requestStatus())
+                || (marker != null && marker != 0)) throw conflict("Pre-closure is not ready for completion");
+        if (state.principal().compareTo(state.outstanding()) != 0)
+            throw conflict("Outstanding principal changed after quotation; manual settlement review is required");
+        int changed = jdbc.update("""
+            UPDATE LOAN_ACCOUNT SET LOAN_STATUS = 'CLOSED', OUTSTANDING_AMOUNT = 0,
+              CLOSURE_DATE = SYSDATE, UPDATED_AT = SYSTIMESTAMP WHERE LOAN_ID = ? AND LOAN_STATUS = 'ACTIVE'
+            """, loanId);
+        if (changed != 1) throw conflict("Loan state changed during closure");
+        jdbc.update("""
+            INSERT INTO AUDIT_LOG (USER_ID, ENTITY_ID, ENTITY_TYPE, ACTION, DETAILS, PAYMENT_ID, QUOTE_ID, CLOSURE_REQUEST_ID)
+            VALUES (?, ?, 'PAYMENT', 'PRE_CLOSURE_LOAN_CLOSED', ?, ?, ?, ?)
+            """, state.borrowerId(), request.paymentId(), "loanId=" + loanId, request.paymentId(), request.quoteId(), request.closureRequestId());
+        LocalDateTime closedAt = jdbc.queryForObject("SELECT CLOSURE_DATE FROM LOAN_ACCOUNT WHERE LOAN_ID = ?", Timestamp.class, loanId).toLocalDateTime();
+        return new PreClosureResult(loanId, request.paymentId(), request.quoteId(), request.closureRequestId(), "CLOSED", BigDecimal.ZERO, closedAt);
     }
 }

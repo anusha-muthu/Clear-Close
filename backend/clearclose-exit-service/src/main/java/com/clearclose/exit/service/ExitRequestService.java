@@ -172,6 +172,16 @@ public class ExitRequestService {
             );
         }
 
+        // The loan lock also serializes creation against foreclosure requests.
+        Integer activeClosure = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM LOAN_CLOSURE_REQUEST WHERE LOAN_ID = ?
+              AND STATUS IN ('PENDING', 'UNDER_REVIEW', 'APPROVED', 'PAYMENT_PENDING')
+            """, Integer.class, request.loanId());
+        if (activeClosure != null && activeClosure > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Another loan closure request is already active");
+        }
+
         // Step 4: Reuse Step 19 eligibility logic
         EligibilityDto eligibility =
             eligibilityService.checkEligibility(

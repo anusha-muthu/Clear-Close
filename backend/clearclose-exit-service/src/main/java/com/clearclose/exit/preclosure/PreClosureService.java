@@ -1,570 +1,336 @@
 package com.clearclose.exit.preclosure;
 
+import java.time.LocalDateTime;
+import org.springframework.security.oauth2.jwt.Jwt;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.List;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PreClosureService {
-
     private final JdbcTemplate jdbc;
+    public PreClosureService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private ResponseStatusException conflict(String message) { return new ResponseStatusException(HttpStatus.CONFLICT, message); }
 
-    private static final int QUOTE_MINUTES = 15;
-
-    // Demo assumption: 18% tax on applicable foreclosure
-    // charges. Replace with configured product/tax rules.
-    private static final BigDecimal TAX_RATE =
-            new BigDecimal("0.18");
-
-    public PreClosureService(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    private long insert(String sql, String column, Object... args) {
+        var key = new GeneratedKeyHolder();
+        jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[]{column});
+            for (int i = 0; i < args.length; i++) ps.setObject(i + 1, args[i]);
+            return ps;
+        }, key);
+        Number id = key.getKey();
+        if (id == null) throw new IllegalStateException("Generated ID is missing");
+        return id.longValue();
     }
 
-    private record LoanInfo(
-        long loanId,
-        String status,
-        BigDecimal outstanding,
-        String earlyClosureAllowed,
-        String chargeType,
-        BigDecimal chargeValue
+    static void validateReason(String reason, boolean required) {
+        if ((required && (reason == null || reason.isBlank())) || (reason != null
+                && reason.getBytes(StandardCharsets.UTF_8).length > 1000)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reason must contain at most 1000 UTF-8 bytes");
+        }
+    }
+
+    private void audit(long actorId, long requestId, boolean officer, String action, String details) {
+        jdbc.update("INSERT INTO AUDIT_LOG (" + (officer ? "OFFICER_ID" : "USER_ID") + """
+            , ENTITY_ID, ENTITY_TYPE, ACTION, DETAILS, CLOSURE_REQUEST_ID)
+            VALUES (?, ?, 'LOAN_CLOSURE_REQUEST', ?, ?, ?)
+            """, actorId, requestId, action, details, requestId);
+    }
+
+    // Every mutation on an existing request takes this lock before quote/payment locks.
+    public void lockOwned(long borrowerId, long requestId) {
+        var rows = jdbc.queryForList("""
+            SELECT c.CLOSURE_REQUEST_ID FROM LOAN_CLOSURE_REQUEST c
+            JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            WHERE c.CLOSURE_REQUEST_ID = ? AND l.BORROWER_ID = ?
+              AND c.CLOSURE_TYPE = 'FORECLOSURE' FOR UPDATE OF c.STATUS
+            """, Long.class, requestId, borrowerId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pre-closure request not found");
+    }
+
+    @Transactional
+    public PreClosureRecord create(long borrowerId, PreClosureRequest request) {
+        if (request == null || request.loanId() == null || request.loanId() <= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valid loan ID is required");
+        validateReason(request.reason(), false);
+        var loans = jdbc.queryForList("""
+            SELECT LOAN_ID FROM LOAN_ACCOUNT WHERE LOAN_ID = ? AND BORROWER_ID = ?
+              AND LOAN_STATUS = 'ACTIVE' AND OUTSTANDING_AMOUNT > 0 FOR UPDATE
+            """, Long.class, request.loanId(), borrowerId);
+        if (loans.isEmpty()) throw conflict("An owned active loan with outstanding principal is required");
+        Integer allowed = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM LOAN_ACCOUNT l JOIN LOAN_PRODUCT_RULE r ON r.RULE_ID = l.RULE_ID
+            WHERE l.LOAN_ID = ? AND r.EARLY_CLOSURE_ALLOWED = 'Y' AND r.RULE_STATUS = 'ACTIVE'
+              AND l.DISBURSEMENT_DATE <= SYSDATE AND l.MATURITY_DATE > SYSDATE
+            """, Integer.class, request.loanId());
+        if (allowed == null || allowed != 1) throw conflict("Loan is not eligible for early closure");
+        Integer competing = jdbc.queryForObject("""
+            SELECT (SELECT COUNT(*) FROM COOLING_OFF_REQUEST WHERE LOAN_ID = ?
+                     AND STATUS IN ('PENDING','UNDER_REVIEW','MORE_INFO_REQUIRED','APPROVED'))
+                 + (SELECT COUNT(*) FROM LOAN_CLOSURE_REQUEST WHERE LOAN_ID = ?
+                     AND STATUS IN ('PENDING','UNDER_REVIEW','PAYMENT_PENDING','APPROVED')) FROM DUAL
+            """, Integer.class, request.loanId(), request.loanId());
+        if (competing != null && competing > 0) throw conflict("Another loan exit or closure request is active");
+        long id = insert("""
+            INSERT INTO LOAN_CLOSURE_REQUEST (LOAN_ID, CLOSURE_TYPE, STATUS, REASON)
+            VALUES (?, 'FORECLOSURE', 'PENDING', ?)
+            """, "CLOSURE_REQUEST_ID", request.loanId(), request.reason());
+        audit(borrowerId, id, false, "PRE_CLOSURE_CREATED", null);
+        return get(borrowerId, id);
+    }
+
+    public PreClosureRecord get(long borrowerId, long requestId) {
+        var rows = jdbc.query("""
+            SELECT c.* FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            WHERE c.CLOSURE_REQUEST_ID = ? AND c.CLOSURE_TYPE = 'FORECLOSURE' AND l.BORROWER_ID = ?
+            """, (rs, n) -> {
+                Number officer = (Number) rs.getObject("OFFICER_ID");
+                Timestamp created = rs.getTimestamp("CREATED_AT");
+                return new PreClosureRecord(rs.getLong("CLOSURE_REQUEST_ID"), rs.getLong("LOAN_ID"),
+                    rs.getString("CLOSURE_TYPE"), rs.getString("STATUS"), rs.getString("REASON"),
+                    officer == null ? null : officer.longValue(), created.toLocalDateTime(), quoteForRequest(requestId));
+            }, requestId, borrowerId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pre-closure request not found");
+        return rows.getFirst();
+    }
+
+    public List<PreClosureRecord> myRequests(long borrowerId) {
+        var ids = jdbc.queryForList("""
+            SELECT c.CLOSURE_REQUEST_ID FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            WHERE l.BORROWER_ID = ? AND c.CLOSURE_TYPE = 'FORECLOSURE'
+            ORDER BY c.CREATED_AT DESC, c.CLOSURE_REQUEST_ID DESC
+            """, Long.class, borrowerId);
+        return ids.stream().map(id -> get(borrowerId, id)).toList();
+    }
+
+    private PreClosureQuote quoteForRequest(long id) {
+        var quotes = jdbc.query("""
+            SELECT q.*, CASE WHEN VALID_UNTIL <= SYSDATE THEN 1 ELSE 0 END AS EXPIRED
+            FROM SETTLEMENT_QUOTE q WHERE CLOSURE_REQUEST_ID = ? AND QUOTE_TYPE = 'CLOSURE'
+            ORDER BY QUOTE_ID DESC
+            """, (rs, n) -> new PreClosureQuote(rs.getLong("QUOTE_ID"), rs.getLong("CLOSURE_REQUEST_ID"),
+                rs.getLong("LOAN_ID"), rs.getBigDecimal("PRINCIPAL_AMOUNT"), rs.getBigDecimal("INTEREST_AMOUNT"),
+                rs.getBigDecimal("CHARGES_AMOUNT"), rs.getBigDecimal("TAX_AMOUNT"), rs.getBigDecimal("TOTAL_AMOUNT"),
+                rs.getString("QUOTE_STATUS"), rs.getTimestamp("VALID_UNTIL").toLocalDateTime(), rs.getInt("EXPIRED") == 1), id);
+        return quotes.isEmpty() ? null : quotes.getFirst();
+    }
+
+    @Transactional
+    public PreClosureQuote createQuote(long borrowerId, long id) {
+        lockOwned(borrowerId, id);
+        var record = get(borrowerId, id);
+        if (!"APPROVED".equals(record.status()) && !"PAYMENT_PENDING".equals(record.status()))
+            throw conflict("Officer approval is required before quotation");
+        var previous = record.quote();
+        if (previous != null && ("ACCEPTED".equals(previous.quoteStatus()) || "PAID".equals(previous.quoteStatus())
+                || ("AVAILABLE".equals(previous.quoteStatus()) && !previous.expired()))) return previous;
+        if (!"APPROVED".equals(record.status())) throw conflict("Accepted quotes cannot be replaced");
+        var loans = jdbc.queryForList("""
+            SELECT l.OUTSTANDING_AMOUNT, r.CLOSURE_CHARGE_TYPE, r.CLOSURE_CHARGE_VALUE
+            FROM LOAN_ACCOUNT l JOIN LOAN_PRODUCT_RULE r ON r.RULE_ID = l.RULE_ID
+            WHERE l.LOAN_ID = ? AND l.BORROWER_ID = ? AND l.LOAN_STATUS = 'ACTIVE'
+              AND r.EARLY_CLOSURE_ALLOWED = 'Y' AND r.RULE_STATUS = 'ACTIVE'
+              AND l.DISBURSEMENT_DATE <= SYSDATE AND l.MATURITY_DATE > SYSDATE
+            """, record.loanId(), borrowerId);
+        if (loans.size() != 1) throw conflict("Loan is no longer eligible for quotation");
+        var loan = loans.getFirst();
+        BigDecimal principal = ((BigDecimal) loan.get("OUTSTANDING_AMOUNT")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal value = (BigDecimal) loan.get("CLOSURE_CHARGE_VALUE");
+        if (principal.signum() <= 0 || value == null || value.signum() < 0) throw conflict("Invalid loan charge rule");
+        BigDecimal charges = switch (String.valueOf(loan.get("CLOSURE_CHARGE_TYPE"))) {
+            case "NONE" -> BigDecimal.ZERO;
+            case "FIXED" -> value;
+            case "PERCENTAGE" -> principal.multiply(value).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            default -> throw conflict("Unsupported foreclosure charge rule");
+        };
+        charges = charges.setScale(2, RoundingMode.HALF_UP);
+        // Existing demo assumption only: no accrued-interest ledger is supplied.
+        BigDecimal interest = new BigDecimal("0.00");
+        BigDecimal tax = charges.multiply(new BigDecimal("0.18")).setScale(2, RoundingMode.HALF_UP);
+        insert("""
+            INSERT INTO SETTLEMENT_QUOTE (LOAN_ID, CLOSURE_REQUEST_ID, QUOTE_TYPE, PRINCIPAL_AMOUNT,
+                INTEREST_AMOUNT, CHARGES_AMOUNT, TAX_AMOUNT, TOTAL_AMOUNT, VALID_UNTIL, QUOTE_STATUS)
+            VALUES (?, ?, 'CLOSURE', ?, ?, ?, ?, ?, SYSDATE + 15/1440, 'AVAILABLE')
+            """, "QUOTE_ID", record.loanId(), id, principal, interest, charges, tax,
+            principal.add(interest).add(charges).add(tax));
+        audit(borrowerId, id, false, "PRE_CLOSURE_QUOTE_CREATED", null);
+        return quoteForRequest(id);
+    }
+
+    @Transactional
+    public PreClosureRecord accept(long borrowerId, long id) {
+        lockOwned(borrowerId, id);
+        var record = get(borrowerId, id);
+        if ("PAYMENT_PENDING".equals(record.status()) && record.quote() != null
+                && "ACCEPTED".equals(record.quote().quoteStatus()) && !record.quote().expired()) return record;
+        if (!"APPROVED".equals(record.status()) || record.officerId() == null || record.quote() == null)
+            throw conflict("An approved request and quotation are required");
+        int changed = jdbc.update("""
+            UPDATE SETTLEMENT_QUOTE SET QUOTE_STATUS = 'ACCEPTED', ACCEPTED_AT = SYSTIMESTAMP,
+                UPDATED_AT = SYSTIMESTAMP WHERE QUOTE_ID = ? AND QUOTE_STATUS = 'AVAILABLE' AND VALID_UNTIL > SYSDATE
+            """, record.quote().quoteId());
+        if (changed != 1) throw conflict("Quotation is expired or already processed");
+        jdbc.update("UPDATE LOAN_CLOSURE_REQUEST SET STATUS = 'PAYMENT_PENDING', UPDATED_AT = SYSTIMESTAMP WHERE CLOSURE_REQUEST_ID = ?", id);
+        audit(borrowerId, id, false, "PRE_CLOSURE_QUOTE_ACCEPTED", null);
+        return get(borrowerId, id);
+    }
+
+    private long officerRequest(long officerId, long id) {
+        var rows = jdbc.queryForList("""
+            SELECT l.BORROWER_ID FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            WHERE c.CLOSURE_REQUEST_ID = ? AND c.CLOSURE_TYPE = 'FORECLOSURE'
+              AND (c.OFFICER_ID IS NULL OR c.OFFICER_ID = ?)
+              AND EXISTS (SELECT 1 FROM OFFICER o WHERE o.OFFICER_ID = ?
+                  AND o.ROLE = 'LOAN_CLOSURE_OFFICER' AND o.ACCOUNT_STATUS = 'ACTIVE'
+                  AND (o.USER_ID IS NULL OR o.USER_ID <> l.BORROWER_ID))
+            FOR UPDATE OF c.STATUS
+            """, Long.class, id, officerId, officerId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Request is unavailable to this officer");
+        return rows.getFirst();
+    }
+
+    @Transactional
+    public PreClosureRecord officerDetails(long officerId, long id) {
+        return get(officerRequest(officerId, id), id);
+    }
+
+    @Transactional
+    public void assign(long officerId, long id) {
+        officerRequest(officerId, id);
+        int changed = jdbc.update("""
+            UPDATE LOAN_CLOSURE_REQUEST SET OFFICER_ID = ?, STATUS = 'UNDER_REVIEW', UPDATED_AT = SYSTIMESTAMP
+            WHERE CLOSURE_REQUEST_ID = ? AND STATUS IN ('PENDING','UNDER_REVIEW')
+            """, officerId, id);
+        if (changed != 1) throw conflict("Request is not awaiting review");
+        audit(officerId, id, true, "PRE_CLOSURE_ASSIGNED", null);
+    }
+
+    @Transactional
+    public void approve(long officerId, long id) {
+        long borrower = officerRequest(officerId, id);
+        var record = get(borrower, id);
+        if ("APPROVED".equals(record.status()) && Long.valueOf(officerId).equals(record.officerId())) return;
+        int changed = jdbc.update("""
+            UPDATE LOAN_CLOSURE_REQUEST SET STATUS = 'APPROVED', OFFICER_ID = ?, UPDATED_AT = SYSTIMESTAMP
+            WHERE CLOSURE_REQUEST_ID = ? AND STATUS IN ('PENDING','UNDER_REVIEW')
+              AND EXISTS (SELECT 1 FROM LOAN_ACCOUNT l WHERE l.LOAN_ID = LOAN_CLOSURE_REQUEST.LOAN_ID AND l.LOAN_STATUS = 'ACTIVE')
+            """, officerId, id);
+        if (changed != 1) throw conflict("Only unpaid requests awaiting review can be approved");
+        audit(officerId, id, true, "PRE_CLOSURE_APPROVED", null);
+    }
+
+    @Transactional
+    public void reject(long officerId, long id, String reason) {
+        validateReason(reason, true);
+        officerRequest(officerId, id);
+        int changed = jdbc.update("""
+            UPDATE LOAN_CLOSURE_REQUEST SET STATUS = 'REJECTED', OFFICER_ID = ?, UPDATED_AT = SYSTIMESTAMP
+            WHERE CLOSURE_REQUEST_ID = ? AND STATUS IN ('PENDING','UNDER_REVIEW')
+              AND NOT EXISTS (SELECT 1 FROM PAYMENT p JOIN SETTLEMENT_QUOTE q ON q.QUOTE_ID = p.QUOTE_ID
+                  WHERE q.CLOSURE_REQUEST_ID = LOAN_CLOSURE_REQUEST.CLOSURE_REQUEST_ID)
+            """, officerId, id);
+        if (changed != 1) throw conflict("Only unpaid requests awaiting review can be rejected");
+        audit(officerId, id, true, "PRE_CLOSURE_REJECTED", reason);
+    }
+
+    public List<Long> pendingRequests(long officerId) {
+        return jdbc.queryForList("""
+            SELECT c.CLOSURE_REQUEST_ID FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            JOIN OFFICER o ON o.OFFICER_ID = ? AND o.ROLE = 'LOAN_CLOSURE_OFFICER' AND o.ACCOUNT_STATUS = 'ACTIVE'
+            WHERE c.CLOSURE_TYPE = 'FORECLOSURE' AND c.STATUS IN ('PENDING','UNDER_REVIEW','APPROVED','PAYMENT_PENDING')
+              AND (c.OFFICER_ID IS NULL OR c.OFFICER_ID = o.OFFICER_ID)
+              AND (o.USER_ID IS NULL OR o.USER_ID <> l.BORROWER_ID) ORDER BY c.CREATED_AT DESC
+            """, Long.class, officerId);
+    }
+
+    @Transactional
+    public void complete(long borrowerId, long id, long loanId, long quoteId, long paymentId) {
+        lockOwned(borrowerId, id);
+        var record = get(borrowerId, id);
+        if ("COMPLETED".equals(record.status())) return;
+        Integer confirmed = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            JOIN SETTLEMENT_QUOTE q ON q.CLOSURE_REQUEST_ID = c.CLOSURE_REQUEST_ID AND q.LOAN_ID = l.LOAN_ID
+            JOIN PAYMENT p ON p.QUOTE_ID = q.QUOTE_ID
+            WHERE c.CLOSURE_REQUEST_ID = ? AND l.LOAN_ID = ? AND q.QUOTE_ID = ? AND p.PAYMENT_ID = ?
+              AND c.CLOSURE_TYPE = 'FORECLOSURE' AND c.STATUS = 'PAYMENT_PENDING'
+              AND l.LOAN_STATUS = 'CLOSED' AND l.OUTSTANDING_AMOUNT = 0 AND l.CLOSURE_DATE IS NOT NULL
+              AND q.QUOTE_TYPE = 'CLOSURE' AND q.QUOTE_STATUS = 'PAID' AND p.PAYMENT_STATUS = 'SUCCESS'
+              AND EXISTS (SELECT 1 FROM AUDIT_LOG a WHERE a.PAYMENT_ID = p.PAYMENT_ID AND a.QUOTE_ID = q.QUOTE_ID
+                  AND a.CLOSURE_REQUEST_ID = c.CLOSURE_REQUEST_ID AND a.ACTION = 'PRE_CLOSURE_LOAN_CLOSED')
+            """, Integer.class, id, loanId, quoteId, paymentId);
+        if (confirmed == null || confirmed != 1) throw conflict("LoanAccount has not confirmed this closure");
+        int changed = jdbc.update("""
+            UPDATE LOAN_CLOSURE_REQUEST SET STATUS = 'COMPLETED', UPDATED_AT = SYSTIMESTAMP
+            WHERE CLOSURE_REQUEST_ID = ? AND STATUS = 'PAYMENT_PENDING'
+            """, id);
+        if (changed != 1) throw conflict("Request changed during completion");
+        audit(borrowerId, id, false, "PRE_CLOSURE_COMPLETED", "paymentId=" + paymentId + ";quoteId=" + quoteId);
+    }
+
+    // JWT identity and active-account checks.
+    public long borrower(Jwt jwt) { return identity(jwt, "BORROWER", "BORROWER"); }
+    public long officer(Jwt jwt) { return identity(jwt, "OFFICER", "LOAN_CLOSURE_OFFICER"); }
+
+    private long identity(Jwt jwt, String type, String role) {
+        if (jwt == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        if (!type.equals(jwt.getClaimAsString("accountType")) || !role.equals(jwt.getClaimAsString("role"))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account role is not permitted");
+        }
+        long id;
+        try {
+            Object claim = jwt.getClaim("userId");
+            if (!(claim instanceof Number)) throw new IllegalArgumentException();
+            id = new BigDecimal(claim.toString()).longValueExact();
+            if (id <= 0 || !(type + ":" + id).equals(jwt.getSubject())) throw new IllegalArgumentException();
+        } catch (IllegalArgumentException | ArithmeticException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authenticated identity");
+        }
+        Integer count = "BORROWER".equals(type)
+            ? jdbc.queryForObject("SELECT COUNT(*) FROM BORROWERS WHERE USER_ID = ? AND ACCOUNT_STATUS = 'ACTIVE'", Integer.class, id)
+            : jdbc.queryForObject("SELECT COUNT(*) FROM OFFICER WHERE OFFICER_ID = ? AND ACCOUNT_STATUS = 'ACTIVE' AND ROLE = 'LOAN_CLOSURE_OFFICER'", Integer.class, id);
+        if (count == null || count != 1) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active or authorized");
+        return id;
+    }
+
+    public record PreClosureRequest(
+        Long loanId,
+        String reason
     ) {}
 
-    private ResponseStatusException error(
-            HttpStatus status, String message) {
-        return new ResponseStatusException(status, message);
-    }
-
-    private LoanInfo ownedLoan(long borrowerId, long loanId) {
-
-        List<LoanInfo> rows = jdbc.query("""
-            SELECT l.LOAN_ID, l.LOAN_STATUS,
-                   l.OUTSTANDING_AMOUNT,
-                   r.EARLY_CLOSURE_ALLOWED,
-                   r.CLOSURE_CHARGE_TYPE,
-                   r.CLOSURE_CHARGE_VALUE
-            FROM LOAN_ACCOUNT l
-            JOIN LOAN_PRODUCT_RULE r
-              ON r.RULE_ID = l.RULE_ID
-            WHERE l.LOAN_ID = ?
-              AND l.BORROWER_ID = ?
-            """,
-            (rs, n) -> new LoanInfo(
-                rs.getLong("LOAN_ID"),
-                rs.getString("LOAN_STATUS"),
-                rs.getBigDecimal("OUTSTANDING_AMOUNT"),
-                rs.getString("EARLY_CLOSURE_ALLOWED"),
-                rs.getString("CLOSURE_CHARGE_TYPE"),
-                rs.getBigDecimal("CLOSURE_CHARGE_VALUE")
-            ),
-            loanId, borrowerId
-        );
-
-        if (rows.isEmpty()) {
-            throw error(HttpStatus.NOT_FOUND,
-                    "Loan not found for this borrower");
-        }
-
-        return rows.get(0);
-    }
-
-    private long generatedId(
-            String sql, Object... values) {
-
-        KeyHolder holder = new GeneratedKeyHolder();
-
-        jdbc.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                sql, new String[] {
-                    sql.contains("LOAN_CLOSURE_REQUEST")
-                        ? "CLOSURE_REQUEST_ID" : "QUOTE_ID"
-                }
-            );
-
-            for (int i = 0; i < values.length; i++) {
-                ps.setObject(i + 1, values[i]);
-            }
-
-            return ps;
-        }, holder);
-
-        if (holder.getKey() == null) {
-            throw new IllegalStateException(
-                    "Database did not return generated ID");
-        }
-
-        return holder.getKey().longValue();
-    }
-
-    private void auditBorrower(
-            long borrowerId, long requestId, String action) {
-
-        jdbc.update("""
-            INSERT INTO AUDIT_LOG
-                (USER_ID, ENTITY_ID, ENTITY_TYPE,
-                 ACTION, CLOSURE_REQUEST_ID)
-            VALUES (?, ?, 'LOAN_CLOSURE_REQUEST', ?, ?)
-            """,
-            borrowerId, requestId, action, requestId);
-    }
-
-    private void auditOfficer(
-            long officerId, long requestId, String action) {
-
-        jdbc.update("""
-            INSERT INTO AUDIT_LOG
-                (OFFICER_ID, ENTITY_ID, ENTITY_TYPE,
-                 ACTION, CLOSURE_REQUEST_ID)
-            VALUES (?, ?, 'LOAN_CLOSURE_REQUEST', ?, ?)
-            """,
-            officerId, requestId, action, requestId);
-    }
-
-    
-    // CREATE REQUEST AND SETTLEMENT QUOTE
-    
-
-    @Transactional
-    public PreClosureRecord create(
-            long borrowerId, PreClosureRequest request) {
-
-        if (request == null || request.loanId() == null
-                || request.loanId() <= 0) {
-            throw error(HttpStatus.BAD_REQUEST,
-                    "Valid loan ID is required");
-        }
-
-        // Lock loan before checking competing requests.
-        List<Long> locked = jdbc.queryForList("""
-            SELECT LOAN_ID FROM LOAN_ACCOUNT
-            WHERE LOAN_ID = ? AND BORROWER_ID = ?
-            FOR UPDATE
-            """, Long.class, request.loanId(), borrowerId);
-
-        if (locked.isEmpty()) {
-            throw error(HttpStatus.NOT_FOUND, "Loan not found");
-        }
-
-        LoanInfo loan = ownedLoan(
-                borrowerId, request.loanId());
-
-        if (!"ACTIVE".equals(loan.status())) {
-            throw error(HttpStatus.CONFLICT,
-                    "Only active loans can be pre-closed");
-        }
-
-        if (!"Y".equals(loan.earlyClosureAllowed())) {
-            throw error(HttpStatus.CONFLICT,
-                    "Early closure is not allowed");
-        }
-
-        if (loan.outstanding() == null ||
-                loan.outstanding().signum() <= 0) {
-            throw error(HttpStatus.CONFLICT,
-                    "No outstanding principal");
-        }
-
-        // Avoid competing cooling-off and closure workflows.
-        Integer cooling = jdbc.queryForObject("""
-            SELECT COUNT(*) FROM COOLING_OFF_REQUEST
-            WHERE LOAN_ID = ?
-              AND STATUS IN
-                  ('PENDING', 'UNDER_REVIEW',
-                   'MORE_INFO_REQUIRED', 'APPROVED')
-            """, Integer.class, loan.loanId());
-
-        Integer closure = jdbc.queryForObject("""
-            SELECT COUNT(*) FROM LOAN_CLOSURE_REQUEST
-            WHERE LOAN_ID = ?
-              AND STATUS IN
-                  ('PENDING', 'UNDER_REVIEW',
-                   'PAYMENT_PENDING', 'APPROVED')
-            """, Integer.class, loan.loanId());
-
-        if (cooling > 0 || closure > 0) {
-            throw error(HttpStatus.CONFLICT,
-                    "Another loan exit or closure request is active");
-        }
-
-        BigDecimal principal = loan.outstanding()
-                .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal rate = loan.chargeValue();
-
-        if (rate == null || rate.signum() < 0) {
-            throw error(HttpStatus.CONFLICT,
-                    "Invalid foreclosure charge rule");
-        }
-
-        BigDecimal charges;
-
-        switch (loan.chargeType()) {
-            case "NONE" ->
-                charges = BigDecimal.ZERO;
-
-            case "FIXED" ->
-                charges = rate;
-
-            case "PERCENTAGE" ->
-                charges = principal.multiply(rate)
-                    .divide(BigDecimal.valueOf(100),
-                            2, RoundingMode.HALF_UP);
-
-            default -> throw error(HttpStatus.CONFLICT,
-                    "Unsupported foreclosure charge type");
-        }
-
-        charges = charges.setScale(
-                2, RoundingMode.HALF_UP);
-
-        // No accrued-interest ledger is present in
-        // the supplied schema. Do not fabricate interest.
-        BigDecimal interest = new BigDecimal("0.00");
-
-        BigDecimal tax = charges.multiply(TAX_RATE)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal total = principal
-                .add(interest)
-                .add(charges)
-                .add(tax);
-
-        String reason = request.reason();
-
-        if (reason != null && reason.length() > 1000) {
-            throw error(HttpStatus.BAD_REQUEST,
-                    "Reason must not exceed 1000 characters");
-        }
-
-        long requestId = generatedId("""
-            INSERT INTO LOAN_CLOSURE_REQUEST
-                (LOAN_ID, CLOSURE_TYPE, STATUS, REASON)
-            VALUES (?, 'FORECLOSURE', 'PENDING', ?)
-            """, loan.loanId(), reason);
-
-        jdbc.update("""
-            UPDATE LOAN_CLOSURE_REQUEST
-            SET STATUS = 'PAYMENT_PENDING',
-                UPDATED_AT = SYSTIMESTAMP
-            WHERE CLOSURE_REQUEST_ID = ?
-            """, requestId);
-
-        LocalDateTime validUntil =
-                LocalDateTime.now().plusMinutes(QUOTE_MINUTES);
-
-        generatedId("""
-            INSERT INTO SETTLEMENT_QUOTE
-                (LOAN_ID, EXIT_REQUEST_ID,
-                 CLOSURE_REQUEST_ID, QUOTE_TYPE,
-                 PRINCIPAL_AMOUNT, INTEREST_AMOUNT,
-                 CHARGES_AMOUNT, TAX_AMOUNT,
-                 TOTAL_AMOUNT, VALID_UNTIL,
-                 QUOTE_STATUS)
-            VALUES
-                (?, NULL, ?, 'CLOSURE',
-                 ?, ?, ?, ?, ?, ?, 'AVAILABLE')
-            """,
-            loan.loanId(),
-            requestId,
-            principal,
-            interest,
-            charges,
-            tax,
-            total,
-            Timestamp.valueOf(validUntil)
-        );
-
-        auditBorrower(
-                borrowerId, requestId, "PRE_CLOSURE_CREATED");
-
-        return get(borrowerId, requestId);
-    }
-
-    // --------------------------------------------
-    // FETCH REQUEST AND QUOTE
-    // --------------------------------------------
-
-    public PreClosureRecord get(
-            long borrowerId, long requestId) {
-
-        List<PreClosureRecord> rows = jdbc.query("""
-            SELECT c.CLOSURE_REQUEST_ID, c.LOAN_ID,
-                   c.CLOSURE_TYPE, c.STATUS, c.REASON,
-                   c.OFFICER_ID, c.CREATED_AT
-            FROM LOAN_CLOSURE_REQUEST c
-            JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
-            WHERE c.CLOSURE_REQUEST_ID = ?
-              AND c.CLOSURE_TYPE = 'FORECLOSURE'
-              AND l.BORROWER_ID = ?
-            """,
-            (rs, n) -> {
-                long id = rs.getLong("CLOSURE_REQUEST_ID");
-                long officer = rs.getLong("OFFICER_ID");
-
-                Timestamp created =
-                        rs.getTimestamp("CREATED_AT");
-
-                return new PreClosureRecord(
-                    id,
-                    rs.getLong("LOAN_ID"),
-                    rs.getString("CLOSURE_TYPE"),
-                    rs.getString("STATUS"),
-                    rs.getString("REASON"),
-                    rs.wasNull() ? null : officer,
-                    created == null ? null
-                        : created.toLocalDateTime(),
-                    quoteForRequest(id)
-                );
-            },
-            requestId, borrowerId
-        );
-
-        if (rows.isEmpty()) {
-            throw error(HttpStatus.NOT_FOUND,
-                    "Pre-closure request not found");
-        }
-
-        return rows.get(0);
-    }
-
-    private PreClosureQuote quoteForRequest(long requestId) {
-
-        List<PreClosureQuote> quotes = jdbc.query("""
-            SELECT QUOTE_ID, CLOSURE_REQUEST_ID,
-                   LOAN_ID, PRINCIPAL_AMOUNT,
-                   INTEREST_AMOUNT, CHARGES_AMOUNT,
-                   TAX_AMOUNT, TOTAL_AMOUNT,
-                   QUOTE_STATUS, VALID_UNTIL,
-                   CASE WHEN VALID_UNTIL <= SYSDATE
-                        THEN 1 ELSE 0 END AS EXPIRED
-            FROM SETTLEMENT_QUOTE
-            WHERE CLOSURE_REQUEST_ID = ?
-              AND QUOTE_TYPE = 'CLOSURE'
-            ORDER BY QUOTE_ID DESC
-            """,
-            (rs, n) -> new PreClosureQuote(
-                rs.getLong("QUOTE_ID"),
-                rs.getLong("CLOSURE_REQUEST_ID"),
-                rs.getLong("LOAN_ID"),
-                rs.getBigDecimal("PRINCIPAL_AMOUNT"),
-                rs.getBigDecimal("INTEREST_AMOUNT"),
-                rs.getBigDecimal("CHARGES_AMOUNT"),
-                rs.getBigDecimal("TAX_AMOUNT"),
-                rs.getBigDecimal("TOTAL_AMOUNT"),
-                rs.getString("QUOTE_STATUS"),
-                rs.getTimestamp("VALID_UNTIL")
-                    .toLocalDateTime(),
-                rs.getInt("EXPIRED") == 1
-            ),
-            requestId
-        );
-
-        return quotes.isEmpty() ? null : quotes.get(0);
-    }
-
-    
-    // ACCEPT QUOTE
-    
-
-    @Transactional
-    public PreClosureRecord accept(
-            long borrowerId, long requestId) {
-
-        PreClosureRecord record = get(borrowerId, requestId);
-
-        if (!"PAYMENT_PENDING".equals(record.status())) {
-            throw error(HttpStatus.CONFLICT,
-                    "Request is not awaiting payment");
-        }
-
-        PreClosureQuote quote = record.quote();
-
-        if (quote == null) {
-            throw error(HttpStatus.NOT_FOUND,
-                    "Settlement quote not found");
-        }
-
-        int changed = jdbc.update("""
-            UPDATE SETTLEMENT_QUOTE
-            SET QUOTE_STATUS = 'ACCEPTED',
-                ACCEPTED_AT = SYSTIMESTAMP,
-                UPDATED_AT = SYSTIMESTAMP
-            WHERE QUOTE_ID = ?
-              AND QUOTE_STATUS = 'AVAILABLE'
-              AND VALID_UNTIL > SYSDATE
-            """, quote.quoteId());
-
-        if (changed != 1) {
-            throw error(HttpStatus.CONFLICT,
-                    "Quote is expired or already processed");
-        }
-
-        auditBorrower(
-                borrowerId, requestId, "QUOTE_ACCEPTED");
-
-        return get(borrowerId, requestId);
-    }
-
-    
-    // OFFICER APPROVAL
-   
-
-    @Transactional
-    public void approve(long officerId, long requestId) {
-
-        // Lock the loan first to serialize closure operations.
-        List<Long> loanIds = jdbc.queryForList("""
-            SELECT LOAN_ID FROM LOAN_CLOSURE_REQUEST
-            WHERE CLOSURE_REQUEST_ID = ?
-              AND CLOSURE_TYPE = 'FORECLOSURE'
-            """, Long.class, requestId);
-
-        if (loanIds.isEmpty()) {
-            throw error(HttpStatus.NOT_FOUND,
-                    "Pre-closure request not found");
-        }
-
-        long loanId = loanIds.get(0);
-
-        List<Long> locked = jdbc.queryForList("""
-            SELECT LOAN_ID FROM LOAN_ACCOUNT
-            WHERE LOAN_ID = ? AND LOAN_STATUS = 'ACTIVE'
-            FOR UPDATE
-            """, Long.class, loanId);
-
-        if (locked.isEmpty()) {
-            throw error(HttpStatus.CONFLICT,
-                    "Loan is not active");
-        }
-
-        List<String> statuses = jdbc.queryForList("""
-            SELECT STATUS FROM LOAN_CLOSURE_REQUEST
-            WHERE CLOSURE_REQUEST_ID = ?
-              AND LOAN_ID = ?
-              AND CLOSURE_TYPE = 'FORECLOSURE'
-            FOR UPDATE
-            """, String.class, requestId, loanId);
-
-        if (statuses.isEmpty() ||
-                !"UNDER_REVIEW".equals(statuses.get(0))) {
-            throw error(HttpStatus.CONFLICT,
-                    "Request is not awaiting officer review");
-        }
-
-        Integer paid = jdbc.queryForObject("""
-            SELECT COUNT(*)
-            FROM PAYMENT p
-            JOIN SETTLEMENT_QUOTE q
-              ON q.QUOTE_ID = p.QUOTE_ID
-            WHERE q.CLOSURE_REQUEST_ID = ?
-              AND q.QUOTE_TYPE = 'CLOSURE'
-              AND p.PAYMENT_STATUS = 'SUCCESS'
-              AND p.AMOUNT = q.TOTAL_AMOUNT
-            """, Integer.class, requestId);
-
-        if (paid == null || paid != 1) {
-            throw error(HttpStatus.CONFLICT,
-                    "Exactly one verified full payment is required");
-        }
-
-        int updated = jdbc.update("""
-            UPDATE LOAN_ACCOUNT
-            SET LOAN_STATUS = 'CLOSED',
-                OUTSTANDING_AMOUNT = 0,
-                CLOSURE_DATE = SYSDATE,
-                UPDATED_AT = SYSTIMESTAMP
-            WHERE LOAN_ID = ?
-              AND LOAN_STATUS = 'ACTIVE'
-            """, loanId);
-
-        if (updated != 1) {
-            throw error(HttpStatus.CONFLICT,
-                    "Loan closure could not be completed");
-        }
-
-        jdbc.update("""
-            UPDATE LOAN_CLOSURE_REQUEST
-            SET STATUS = 'COMPLETED',
-                OFFICER_ID = ?,
-                UPDATED_AT = SYSTIMESTAMP
-            WHERE CLOSURE_REQUEST_ID = ?
-            """, officerId, requestId);
-
-        auditOfficer(
-                officerId, requestId, "PRE_CLOSURE_APPROVED");
-    }
-
-   
-    // OFFICER REJECTION
-    
-
-    @Transactional
-    public void reject(
-            long officerId, long requestId, String reason) {
-
-        if (reason == null || reason.isBlank()
-                || reason.length() > 1000) {
-            throw error(HttpStatus.BAD_REQUEST,
-                    "A rejection reason of up to 1000 characters is required");
-        }
-
-        // Reject only before a successful payment.
-        Integer paid = jdbc.queryForObject("""
-            SELECT COUNT(*)
-            FROM PAYMENT p
-            JOIN SETTLEMENT_QUOTE q
-              ON q.QUOTE_ID = p.QUOTE_ID
-            WHERE q.CLOSURE_REQUEST_ID = ?
-              AND p.PAYMENT_STATUS = 'SUCCESS'
-            """, Integer.class, requestId);
-
-        if (paid != null && paid > 0) {
-            throw error(HttpStatus.CONFLICT,
-                    "Paid requests require manual review or refund handling");
-        }
-
-        int changed = jdbc.update("""
-            UPDATE LOAN_CLOSURE_REQUEST
-            SET STATUS = 'REJECTED',
-                REASON = ?,
-                OFFICER_ID = ?,
-                UPDATED_AT = SYSTIMESTAMP
-            WHERE CLOSURE_REQUEST_ID = ?
-              AND CLOSURE_TYPE = 'FORECLOSURE'
-              AND STATUS IN ('PENDING', 'PAYMENT_PENDING')
-            """, reason, officerId, requestId);
-
-        if (changed != 1) {
-            throw error(HttpStatus.CONFLICT,
-                    "Request cannot be rejected in its current state");
-        }
-
-        auditOfficer(
-                officerId, requestId, "PRE_CLOSURE_REJECTED");
-    }
-
-    
-    // OFFICER DASHBOARD
-    
-
-    public List<Long> pendingRequests() {
-        return jdbc.queryForList("""
-            SELECT CLOSURE_REQUEST_ID
-            FROM LOAN_CLOSURE_REQUEST
-            WHERE CLOSURE_TYPE = 'FORECLOSURE'
-              AND STATUS IN
-                  ('PENDING', 'PAYMENT_PENDING', 'UNDER_REVIEW')
-            ORDER BY CREATED_AT DESC
-            """, Long.class);
-    }
+    public record PreClosureQuote(
+        Long quoteId,
+        Long closureRequestId,
+        Long loanId,
+        BigDecimal principalAmount,
+        BigDecimal interestAmount,
+        BigDecimal chargesAmount,
+        BigDecimal taxAmount,
+        BigDecimal totalAmount,
+        String quoteStatus,
+        LocalDateTime validUntil,
+        boolean expired
+    ) {}
+
+    public record PreClosureRecord(
+        Long closureRequestId,
+        Long loanId,
+        String closureType,
+        String status,
+        String reason,
+        Long officerId,
+        LocalDateTime createdAt,
+        PreClosureQuote quote
+    ) {}
 }
