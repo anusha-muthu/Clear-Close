@@ -26,23 +26,7 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/borrower/signup")
-    public ResponseEntity<AuthResponse> signup(
-        @Valid @RequestBody SignupRequest request
-    ) {
-        try {
-            
-
-            return ResponseEntity.ok(
-                authService.signupBorrower(request)
-            );
-        } catch (RuntimeException ex) {
-            org.slf4j.LoggerFactory
-                .getLogger(AuthController.class)
-                .error("Borrower signup failed", ex);
-            throw ex;
-        }
-    }
+   
 
     @PostMapping("/borrower/login")
     public ResponseEntity<AuthResponse> borrowerLogin(

@@ -137,21 +137,21 @@ public class GrievanceController {
         return grievanceService.getHistory(id);
     }
     
-    //---------------Filter grievances by status
-    @GetMapping("/status/{status}")
-    public List<Grievances> getByStatus(@PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
-        requireAdmin(jwt);
-        return grievanceService.getByStatus(status);
-    }
-
-
-    // --------------Find grievances related to the loan id 
-    @GetMapping("/loan/{loanId}")
-    public List<Grievances> getByLoanId(
-            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
-        requireAdmin(jwt);
-        return grievanceService.getByLoanId(loanId);
-    }
+//    //---------------Filter grievances by status
+//    @GetMapping("/status/{status}")
+//    public List<Grievances> getByStatus(@PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
+//        requireAdmin(jwt);
+//        return grievanceService.getByStatus(status);
+//    }
+//
+//
+//    // --------------Find grievances related to the loan id 
+//    @GetMapping("/loan/{loanId}")
+//    public List<Grievances> getByLoanId(
+//            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
+//        requireAdmin(jwt);
+//        return grievanceService.getByLoanId(loanId);
+//    }
 
     // -------------------Find grievances exceeding the window
     @GetMapping("/overdue")
