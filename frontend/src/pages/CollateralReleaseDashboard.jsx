@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { getMyCollateralRequests, submitCollateralRequest, getCollateralEligibility } from "../collateralApi.js";
+import CollateralRegister from "../components/CollateralRegister.jsx";
+import CollateralEligibilityFields from "../components/CollateralEligibilityFields.jsx";
 import {
   getAssignedReleaseRequests,
   decideReleaseRequest,
   completeReleaseRequest,
-} from "../collateralOfficerApi";
-import {
-  getMyCollateralRequests,
-  submitCollateralRequest,
-} from "../collateralApi.js";
+} from "../collateralOfficerApi.js";
+
 function displayDate(value) {
   return value ? String(value).slice(0, 10) : "Not available";
 }
@@ -26,6 +26,7 @@ const emptyForm = {
   collateralId: "",
   loanAccountId: "",
   reason: "LOAN_FULLY_PAID",
+  releaseReference: "",
 };
 
 function StatusBadge({ status }) {
@@ -43,6 +44,8 @@ export default function CollateralReleaseDashboard({ session }) {
     && session?.accountType === "OFFICER"
     && ["COLLATERAL_OFFICER", "ADMIN"].includes(session?.role);
   const currentUserId = session?.userId == null ? null : String(session.userId);
+  const [officerView, setOfficerView] = useState("requests");
+  const [registerBusy, setRegisterBusy] = useState(false);
   const [requests, setRequests] = useState([]);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
@@ -50,6 +53,13 @@ export default function CollateralReleaseDashboard({ session }) {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [newRequest, setNewRequest] = useState({ ...emptyForm });
   const [formError, setFormError] = useState("");
+  const [selectionCheck, setSelectionCheck] = useState(null);
+  const createBusyRef = useRef(false);
+  const createControllerRef = useRef(null);
+  const canSubmitSelection = selectionCheck?.allowed === true
+    && selectionCheck.token === session?.token
+    && selectionCheck.loanAccountId === String(newRequest.loanAccountId)
+    && selectionCheck.collateralId === String(newRequest.collateralId);
   const dialogRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +73,11 @@ export default function CollateralReleaseDashboard({ session }) {
   const [actionNotice, setActionNotice] = useState("");
   const actionControllerRef = useRef(null);
   const actionBusyRef = useRef(false);
+
+  useEffect(() => {
+    setIsSubmitting(false); setSelectionCheck(null);
+    return () => { createControllerRef.current?.abort(); createBusyRef.current = false; };
+  }, [token, currentUserId, accountType, role]);
 
   useEffect(() => {
     setIsActing(false);
@@ -136,15 +151,34 @@ export default function CollateralReleaseDashboard({ session }) {
       setFormError("Enter valid numeric collateral and loan IDs.");
       return;
     }
-    if (isSubmitting) return;
+    if (createBusyRef.current) return;
+    if (!canSubmitSelection) {
+      setFormError("Select collateral and confirm eligibility before submitting.");
+      return;
+    }
+    createBusyRef.current = true;
+    const controller = new AbortController();
+    createControllerRef.current = controller;
     setIsSubmitting(true);
     setFormError("");
     try {
+      // Recheck immediately before submitting; the backend also enforces eligibility.
+      const fresh = await getCollateralEligibility(session, collateralId, controller.signal);
+      if (controller.signal.aborted) return;
+      if (Number(fresh.loanAccountId) !== loanAccountId) {
+        setSelectionCheck(null);
+        throw new Error("The collateral does not belong to the selected loan.");
+      }
+      if (!fresh.canSubmitRequest) {
+        setSelectionCheck(null);
+        throw new Error(fresh.message);
+      }
       const saved = await submitCollateralRequest(session, {
         collateralId,
         loanAccountId,
         reason: newRequest.reason,
-      });
+      }, controller.signal);
+      if (controller.signal.aborted) return;
       const createdRecord = toDisplayRequest(saved);
       setRequests((previous) => [createdRecord, ...previous.filter((row) => row.requestId !== createdRecord.requestId)]);
       setSelectedRequestId(createdRecord.requestId);
@@ -152,19 +186,14 @@ export default function CollateralReleaseDashboard({ session }) {
       setStatusFilter("ALL");
       setIsNewRequestModalOpen(false);
       setNewRequest({ ...emptyForm });
-              } catch (error) {
-        console.error("Release submission failed:", error);
-
-        const message = error.message || "";
-
-        setFormError(
-          /not currently eligible|not eligible/i.test(message)
-            ? "Collateral is not eligible for release."
-            : message || "Unable to submit the release request."
-        );
-      } finally {
-        setIsSubmitting(false);
+    } catch (error) {
+      if (!controller.signal.aborted) setFormError(error.message || "Unable to submit the collateral release request.");
+    } finally {
+      if (createControllerRef.current === controller) {
+        createBusyRef.current = false;
+        if (!controller.signal.aborted) setIsSubmitting(false);
       }
+    }
   }
 
   async function handleOfficerAction(requestId, action) {
@@ -230,9 +259,15 @@ export default function CollateralReleaseDashboard({ session }) {
           <p className="mt-2 text-sm text-gray-500">{isOfficerUser ? "Review your assigned collateral release requests." : "Track your own collateral release requests."}</p>
           <p className="mt-2 text-xs text-gray-500">Refresh to see the latest request status and release details.</p>
         </div>
-        {isBorrowerUser && <button type="button" disabled={loading || isSubmitting} onClick={() => { setFormError(""); setIsNewRequestModalOpen(true); }} className="cursor-pointer whitespace-nowrap rounded-full bg-black px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800">+ Request Asset Release</button>}
+        {isBorrowerUser && <button type="button" disabled={loading || isSubmitting} onClick={() => { setFormError(""); setSelectionCheck(null); setIsNewRequestModalOpen(true); }} className="cursor-pointer whitespace-nowrap rounded-full bg-black px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800">+ Request Asset Release</button>}
       </header>
 
+      {isOfficerUser && <nav aria-label="Collateral officer sections" className="mx-auto mb-6 flex max-w-7xl flex-wrap gap-3">
+        <button type="button" aria-pressed={officerView === "requests"} disabled={registerBusy || isActing} onClick={() => setOfficerView("requests")} className={`rounded-full border px-5 py-3 text-sm font-semibold disabled:opacity-50 ${officerView === "requests" ? "bg-black text-white" : "bg-white"}`}>Release requests</button>
+        <button type="button" aria-pressed={officerView === "register"} disabled={registerBusy || isActing} onClick={() => setOfficerView("register")} className={`rounded-full border px-5 py-3 text-sm font-semibold disabled:opacity-50 ${officerView === "register" ? "bg-black text-white" : "bg-white"}`}>Collateral register</button>
+      </nav>}
+      {isOfficerUser && officerView === "register" && <CollateralRegister session={session} onBusyChange={setRegisterBusy} />}
+      <div hidden={isOfficerUser && officerView === "register"}>
       <div className="mx-auto mb-5 flex max-w-7xl items-center justify-between gap-4">
         <p role={loadError ? "alert" : "status"} className={loadError ? "text-sm text-red-700" : "text-sm text-gray-500"}>
           {loadError || (loading ? "Loading requests…" : "Requests loaded.")}
@@ -314,14 +349,17 @@ export default function CollateralReleaseDashboard({ session }) {
         <div className="mb-6 flex items-center justify-between gap-4"><h2 id="release-request-title" className="text-2xl font-bold" style={headingStyle}>Request Asset Release</h2><button type="button" disabled={isSubmitting} aria-label="Close request form" onClick={() => setIsNewRequestModalOpen(false)} className="cursor-pointer p-2 text-lg text-gray-500 hover:text-black">✕</button></div>
         <form onSubmit={handleCreateRequest} className="space-y-5">
           {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
-          <label className="block text-sm font-semibold">Collateral Register ID *<input name="collateralId" type="number" min="1" step="1" required placeholder="e.g. 405912" value={newRequest.collateralId} onChange={(e) => setNewRequest({ ...newRequest, collateralId: e.target.value })} className={fieldClass} /></label>
-          <label className="block text-sm font-semibold">Loan Account ID *<input name="loanAccountId" type="number" min="1" step="1" required placeholder="Numeric loan account ID" value={newRequest.loanAccountId} onChange={(e) => setNewRequest({ ...newRequest, loanAccountId: e.target.value })} className={fieldClass} /></label>
+          {isNewRequestModalOpen && isBorrowerUser && <CollateralEligibilityFields
+            session={session} form={newRequest} setForm={setNewRequest}
+            disabled={isSubmitting} onCheck={setSelectionCheck}
+          />}
           <label className="block text-sm font-semibold">Release Reason *<select name="reason" required value={newRequest.reason} onChange={(e) => setNewRequest({ ...newRequest, reason: e.target.value })} className={fieldClass}><option value="LOAN_FULLY_PAID">Loan Settled &amp; Fully Closed</option><option value="COLLATERAL_SUBSTITUTION">Collateral Substitution Approved</option><option value="COURT_MANDATE">Legal Clear / Court Mandate</option></select></label>
 
           <p className="text-xs text-gray-500">The release reference is assigned by the officer after processing.</p>
-          <div className="flex flex-wrap justify-end gap-3 pt-3"><button type="button" disabled={isSubmitting} onClick={() => setIsNewRequestModalOpen(false)} className="cursor-pointer rounded-full border border-black px-6 py-3 text-sm font-semibold hover:bg-gray-100">Cancel</button><button type="submit" disabled={isSubmitting} className="cursor-pointer rounded-full bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800">{isSubmitting ? "Submitting…" : "Submit Request"}</button></div>
+          <div className="flex flex-wrap justify-end gap-3 pt-3"><button type="button" disabled={isSubmitting} onClick={() => setIsNewRequestModalOpen(false)} className="cursor-pointer rounded-full border border-black px-6 py-3 text-sm font-semibold hover:bg-gray-100">Cancel</button><button type="submit" disabled={isSubmitting || !canSubmitSelection} className="cursor-pointer rounded-full bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800">{isSubmitting ? "Submitting…" : "Submit Request"}</button></div>
         </form>
       </dialog>
+      </div>
     </div>
   );
 }
