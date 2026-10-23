@@ -1,6 +1,56 @@
 
 const API_URL = "http://localhost:8080";
 
+// Foreclosure uses the same gateway and JWT as cooling-off, with separate request IDs.
+export async function preClosureRequest(token, path = "", options = {}) {
+  const response = await fetch(`${API_URL}/api/pre-closures${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+    },
+  });
+  if (!response.ok) {
+    const error = new Error(await getErrorMessage(response,
+      `Unable to process pre-closure (HTTP ${response.status}).`, token));
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+function preClosurePayment(data) {
+  return {
+    ...data,
+    paymentStatus: data.status,
+    amountPaise: Math.round(Number(data.amount) * 100),
+    currency: "INR",
+    payable: ["NOT_STARTED", "INITIATED"].includes(data.status),
+    message: data.status === "SUCCESS"
+      ? "Payment verified. Refresh exit status to see the final loan closure."
+      : "Pay the accepted quotation using Razorpay Test Mode.",
+  };
+}
+
+export async function getPreClosurePayment(token, requestId) {
+  return preClosurePayment(await preClosureRequest(token, `/${encodeURIComponent(requestId)}/payment`));
+}
+
+export async function createPreClosureOrder(token, requestId) {
+  return preClosurePayment(await preClosureRequest(token, `/${encodeURIComponent(requestId)}/payment/order`, { method: "POST" }));
+}
+
+export async function verifyPreClosurePayment(token, requestId, response) {
+  return preClosurePayment(await preClosureRequest(token, `/${encodeURIComponent(requestId)}/payment/verify`, {
+    method: "POST",
+    body: JSON.stringify({
+      razorpayOrderId: response.razorpay_order_id,
+      razorpayPaymentId: response.razorpay_payment_id,
+      razorpaySignature: response.razorpay_signature,
+    }),
+  }));
+}
+
 async function paymentRequest(path, token, body) {
   const response = await fetch(`${API_URL}/api/payments${path}`, {
     method: "POST",

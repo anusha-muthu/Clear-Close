@@ -83,9 +83,20 @@ COMPATIBILITY
 This replaces the previous payment-before-approval behavior. Use a fresh unpaid request
 for manual testing. Old paid UNDER_REVIEW records need individual review; do not reset
 payments, change settled amounts, or blindly replay approval against those records.
-This backend change does not add a foreclosure page to the frontend, an additional-
-information conversation, automatic NOC generation, or foreclosure Kafka events.
+The borrower dashboard and LoanClosureDashboard now include pre-closure screens.
+An additional-information conversation, automatic NOC generation and foreclosure Kafka events are not included.
 Cooling-off retains its existing Kafka payment/completion workflow.
+
+OFFICER FRONTEND TESTING
+Sign in through the Loan Closure Officer portal and choose Pre-closure / Foreclosure.
+Use the search, status and assignment filters. Open a PENDING request, Assign to Me,
+then approve or reject with a reason and Confirm Decision. Refresh after borrower payment
+to verify the quote is PAID, loan CLOSED and request COMPLETED. Completed and rejected
+requests stay in history. A rejection reason remains visible after refresh.
+Restart Exit Service after your manual build for the additional loan details and history API.
+No database migration is needed.
+GET /api/pre-closures/officer/requests?includeHistory=true includes authorized history;
+omitting the parameter preserves the existing active-requests-only behavior.
 
 TEST SOURCE FILES ADDED (NOT RUN)
 Exit Service: PreClosureServiceTest (nested Workflow, IdentityChecks and Payments groups).

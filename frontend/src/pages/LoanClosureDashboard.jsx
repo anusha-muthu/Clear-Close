@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import RequestInformation from "../components/RequestInformation";
+import PreClosure from "../components/PreClosure";
 
 import {
   getOfficerRequests,
@@ -379,6 +380,10 @@ function LoanClosureDashboard({ session, onLogout }) {
           </p>
 
           <nav className="sidebar-nav officer-sidebar-nav">
+            <button type="button" className={`sidebar-link ${activeView === "preclosure" ? "active" : ""}`}
+              onClick={() => { setSelectedId(null); setActiveView("preclosure"); }}>
+              ↗ Pre-closure Requests
+            </button>
 
             <button
               onClick={() => setActiveView("all")}
@@ -430,6 +435,17 @@ function LoanClosureDashboard({ session, onLogout }) {
         {/* MAIN CONTENT */}
 
         <main className="officer-main dashboard-main">
+
+          <nav aria-label="Loan closure workflows" className="mb-6 flex flex-wrap gap-3">
+            <button type="button" aria-pressed={activeView !== "preclosure"}
+              className={`rounded-full border px-5 py-3 text-sm font-semibold ${activeView !== "preclosure" ? "border-green-900 bg-green-900 text-white" : "border-gray-300 bg-white text-gray-800"}`}
+              onClick={() => { setSelectedId(null); setActiveView("all"); }}>Cooling-off Exit</button>
+            <button type="button" aria-pressed={activeView === "preclosure"}
+              className={`rounded-full border px-5 py-3 text-sm font-semibold ${activeView === "preclosure" ? "border-green-900 bg-green-900 text-white" : "border-gray-300 bg-white text-gray-800"}`}
+              onClick={() => { setSelectedId(null); setActiveView("preclosure"); }}>Pre-closure / Foreclosure</button>
+          </nav>
+
+          {activeView === "preclosure" ? <PreClosure session={session} officer /> : <>
 
           {/* HEADER */}
 
@@ -653,6 +669,8 @@ function LoanClosureDashboard({ session, onLogout }) {
 
             </>
           )}
+
+          </>}
 
           {/* SELECTED REQUEST DETAILS */}
 

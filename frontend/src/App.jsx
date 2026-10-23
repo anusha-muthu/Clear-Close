@@ -189,7 +189,7 @@ function App() {
   }
 
   // Preserve existing bookmarks while keeping closure and grievance dashboards separate.
-  if (route === "#officer-dashboard") {
+  if (route === "#officer-dashboard" || route === "#closure-officer-dashboard") {
     return <Redirect to={OFFICER_PORTALS.closure.dashboard} />;
   }
 

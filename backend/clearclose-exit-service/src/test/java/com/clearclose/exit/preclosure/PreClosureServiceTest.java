@@ -27,7 +27,7 @@ class PreClosureServiceTest {
         private void owned(String status, Long officerId) {
             when(jdbc.queryForList(anyString(), eq(Long.class), eq(44L), eq(1101L))).thenReturn(List.of(44L));
             var record = new PreClosureRecord(44L, 24L, "FORECLOSURE", status, "Borrower reason", officerId,
-                LocalDateTime.of(2026, 10, 23, 12, 0), null);
+                LocalDateTime.of(2026, 10, 23, 12, 0), null, null, null);
             doReturn(List.of(record)).when(jdbc).query(anyString(), any(RowMapper.class), eq(44L), eq(1101L));
         }
         private void officer() {
