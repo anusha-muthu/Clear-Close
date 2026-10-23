@@ -156,7 +156,17 @@ public class SecurityConfig {
                     "/api/cooling-off/**",
                     "/api/payments/**"
                 ).hasRole("BORROWER")
+                
+             // Loan Pre-Closure: officer APIs
+                .requestMatchers(
+                    "/api/pre-closures/officer/**"
+                ).hasRole("LOAN_CLOSURE_OFFICER")
 
+                // Loan Pre-Closure: borrower APIs
+                .requestMatchers(
+                    "/api/pre-closures/**"
+                ).hasRole("BORROWER")
+                
                 // Block everything else
                 .anyRequest().denyAll()
             )
