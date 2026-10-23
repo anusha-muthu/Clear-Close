@@ -30,6 +30,29 @@ public class LoanAccountClosureClient {
     private final String secret;
     public record ClosureResult(Long loanId, Long paymentId, Long quoteId, Long exitRequestId,
             String loanStatus, BigDecimal outstandingAmount, LocalDateTime closureDate) {}
+    public record PreClosureResult(Long loanId, Long paymentId, Long quoteId, Long closureRequestId,
+            String loanStatus, BigDecimal outstandingAmount, LocalDateTime closureDate) {}
+
+    public PreClosureResult closePreClosure(long loanId, long paymentId, long quoteId, long requestId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("Do not hold an Exit transaction during remote loan closure");
+        }
+        try {
+            var result = client.post().uri("/api/internal/loans/{loanId}/complete-pre-closure", loanId)
+                .headers(headers -> headers.setBearerAuth(serviceToken()))
+                .body(Map.of("paymentId", paymentId, "quoteId", quoteId, "closureRequestId", requestId))
+                .retrieve().body(PreClosureResult.class);
+            if (result == null || !Long.valueOf(loanId).equals(result.loanId())
+                    || !Long.valueOf(paymentId).equals(result.paymentId()) || !Long.valueOf(quoteId).equals(result.quoteId())
+                    || !Long.valueOf(requestId).equals(result.closureRequestId()) || !"CLOSED".equals(result.loanStatus())
+                    || result.outstandingAmount() == null || result.outstandingAmount().signum() != 0 || result.closureDate() == null) {
+                throw new IllegalStateException("LoanAccount did not confirm this pre-closure");
+            }
+            return result;
+        } catch (RestClientException ex) {
+            throw new IllegalStateException("LoanAccount pre-closure unavailable or rejected; completion remains pending");
+        }
+    }
 
     public LoanAccountClosureClient(@Value("${clearclose.loan-account.base-url}") String baseUrl,
             @Value("${clearclose.internal.exit-secret}") String secret) {

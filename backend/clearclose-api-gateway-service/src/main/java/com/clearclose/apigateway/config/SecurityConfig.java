@@ -1,6 +1,9 @@
 
 package com.clearclose.apigateway.config;
 
+import org.springframework.cloud.gateway.route.RouteLocator;
+import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
+
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -141,6 +144,7 @@ public class SecurityConfig {
                 // Loan Closure Officers
                 .pathMatchers(
                     "/api/officer/cooling-off/**",
+                    "/api/pre-closures/officer/**",
                     "/api/officer/closure/**"
                 ).hasRole("LOAN_CLOSURE_OFFICER")
 
@@ -177,6 +181,7 @@ public class SecurityConfig {
                 .pathMatchers(
                     "/api/borrower/**",
                     "/api/cooling-off/**",
+                    "/api/pre-closures/**",
                     "/api/payments/**"
                 ).hasRole("BORROWER")
 
@@ -252,5 +257,12 @@ public class SecurityConfig {
         );
 
         return source;
+    }
+
+    // Exit Service route for borrower and officer foreclosure APIs.
+    @Bean
+    public RouteLocator preClosureRoutes(RouteLocatorBuilder builder,
+            @Value("${clearclose.exit.base-url:http://localhost:8083}") String exitUrl) {
+        return builder.routes().route("pre-closures", route -> route.path("/api/pre-closures/**").uri(exitUrl)).build();
     }
 }

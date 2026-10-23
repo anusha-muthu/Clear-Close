@@ -3,8 +3,6 @@ package com.clearclose.exit.preclosure;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -25,12 +23,14 @@ public class PreClosurePaymentService {
 
     private final JdbcTemplate jdbc;
     private final RazorpayClient razorpay;
+    private final PreClosureService workflow;
 
     public PreClosurePaymentService(
             JdbcTemplate jdbc,
-            RazorpayClient razorpay) {
+            RazorpayClient razorpay, PreClosureService workflow) {
         this.jdbc = jdbc;
         this.razorpay = razorpay;
+        this.workflow = workflow;
     }
 
     public record VerifyRequest(
@@ -56,7 +56,8 @@ public class PreClosurePaymentService {
         String quoteStatus,
         String requestStatus,
         String loanStatus,
-        boolean valid
+        boolean valid,
+        boolean approved
     ) {}
 
     private ResponseStatusException conflict(String message) {
@@ -72,10 +73,15 @@ public class PreClosurePaymentService {
                    c.STATUS AS REQUEST_STATUS,
                    l.LOAN_STATUS,
                    CASE WHEN q.VALID_UNTIL > SYSDATE
-                        THEN 1 ELSE 0 END AS VALID_QUOTE
+                        THEN 1 ELSE 0 END AS VALID_QUOTE,
+                   CASE WHEN c.OFFICER_ID IS NOT NULL AND EXISTS (
+                       SELECT 1 FROM AUDIT_LOG a WHERE a.CLOSURE_REQUEST_ID = c.CLOSURE_REQUEST_ID
+                         AND a.ACTION = 'PRE_CLOSURE_APPROVED' AND a.OFFICER_ID = c.OFFICER_ID)
+                       THEN 1 ELSE 0 END AS APPROVED
             FROM SETTLEMENT_QUOTE q
             JOIN LOAN_CLOSURE_REQUEST c
               ON c.CLOSURE_REQUEST_ID = q.CLOSURE_REQUEST_ID
+              AND c.LOAN_ID = q.LOAN_ID
             JOIN LOAN_ACCOUNT l
               ON l.LOAN_ID = q.LOAN_ID
             WHERE c.CLOSURE_REQUEST_ID = ?
@@ -91,7 +97,8 @@ public class PreClosurePaymentService {
                 rs.getString("QUOTE_STATUS"),
                 rs.getString("REQUEST_STATUS"),
                 rs.getString("LOAN_STATUS"),
-                rs.getInt("VALID_QUOTE") == 1
+                rs.getInt("VALID_QUOTE") == 1,
+                rs.getInt("APPROVED") == 1
             ),
             requestId, borrowerId
         );
@@ -132,7 +139,7 @@ public class PreClosurePaymentService {
             (String) payment.get("RAZORPAY_PAYMENT_ID"),
             q.amount(),
             (String) payment.get("PAYMENT_STATUS"),
-            razorpay.keyId()
+            "INITIATED".equals(payment.get("PAYMENT_STATUS")) && razorpay.configured() ? razorpay.keyId() : null
         );
     }
 
@@ -143,12 +150,13 @@ public class PreClosurePaymentService {
     public PaymentResult createOrder(
             long borrowerId, long requestId) {
 
+        workflow.lockOwned(borrowerId, requestId);
         QuoteInfo q = quote(borrowerId, requestId);
 
         if (!"ACTIVE".equals(q.loanStatus())
                 || !"PAYMENT_PENDING".equals(q.requestStatus())
                 || !"ACCEPTED".equals(q.quoteStatus())
-                || !q.valid()) {
+                || !q.valid() || !q.approved()) {
             throw conflict(
                     "Accepted, unexpired quote and active loan required");
         }
@@ -236,6 +244,7 @@ public class PreClosurePaymentService {
                     "Valid Razorpay payment details required");
         }
 
+        workflow.lockOwned(borrowerId, requestId);
         QuoteInfo q = quote(borrowerId, requestId);
 
         Map<String, Object> payment;
@@ -243,7 +252,7 @@ public class PreClosurePaymentService {
         try {
             payment = jdbc.queryForMap("""
                 SELECT PAYMENT_ID, RAZORPAY_ORDER_ID,
-                       RAZORPAY_PAYMENT_ID, PAYMENT_STATUS
+                       RAZORPAY_PAYMENT_ID, PAYMENT_STATUS, AMOUNT
                 FROM PAYMENT
                 WHERE QUOTE_ID = ?
                   AND RAZORPAY_ORDER_ID = ?
@@ -271,6 +280,12 @@ public class PreClosurePaymentService {
         if (!"INITIATED".equals(storedStatus)) {
             throw conflict(
                     "Payment is not awaiting verification");
+        }
+
+        if (!"PAYMENT_PENDING".equals(q.requestStatus()) || !"ACCEPTED".equals(q.quoteStatus())
+                || !"ACTIVE".equals(q.loanStatus()) || !q.approved() || payment.get("AMOUNT") == null
+                || new BigDecimal(payment.get("AMOUNT").toString()).compareTo(q.amount()) != 0) {
+            throw conflict("Payment does not match the approved settlement workflow");
         }
 
         // Validate Razorpay checkout signature.
@@ -309,10 +324,19 @@ public class PreClosurePaymentService {
         Map<String, Object> provider =
                 razorpay.payment(
                         request.razorpayPaymentId());
+        if (!request.razorpayPaymentId().equals(provider.get("id")))
+            throw conflict("Razorpay returned a different payment");
 
-        if (!request.razorpayPaymentId().equals(
-                    provider.get("id"))
-                || !request.razorpayOrderId().equals(
+        return confirm(q, payment, provider, borrowerId, requestId);
+    }
+
+    private PaymentResult confirm(QuoteInfo q, Map<String, Object> payment, Map<String, Object> provider,
+            long borrowerId, long requestId) {
+        String orderId = (String) payment.get("RAZORPAY_ORDER_ID");
+        String providerId = String.valueOf(provider.get("id"));
+
+        if (!providerId.matches("pay_[A-Za-z0-9]+")
+                || !orderId.equals(
                     provider.get("order_id"))
                 || RazorpayClient.amount(provider)
                     != paise(q.amount())
@@ -329,7 +353,7 @@ public class PreClosurePaymentService {
             case "upi" -> "UPI";
             case "netbanking" -> "NET_BANKING";
             case "card" -> razorpay.cardMethod(
-                    request.razorpayPaymentId());
+                    providerId);
             default -> null;
         };
 
@@ -347,7 +371,7 @@ public class PreClosurePaymentService {
             WHERE PAYMENT_ID = ?
               AND PAYMENT_STATUS = 'INITIATED'
             """,
-            request.razorpayPaymentId(),
+            providerId,
             method,
             paymentId
         );
@@ -357,7 +381,7 @@ public class PreClosurePaymentService {
                     "Payment state changed during verification");
         }
 
-        jdbc.update("""
+        int quoteChanged = jdbc.update("""
             UPDATE SETTLEMENT_QUOTE
             SET QUOTE_STATUS = 'PAID',
                 UPDATED_AT = SYSTIMESTAMP
@@ -365,22 +389,16 @@ public class PreClosurePaymentService {
               AND QUOTE_STATUS = 'ACCEPTED'
             """, q.quoteId());
 
-        jdbc.update("""
-            UPDATE LOAN_CLOSURE_REQUEST
-            SET STATUS = 'UNDER_REVIEW',
-                UPDATED_AT = SYSTIMESTAMP
-            WHERE CLOSURE_REQUEST_ID = ?
-              AND STATUS = 'PAYMENT_PENDING'
-            """, requestId);
+        if (quoteChanged != 1) throw conflict("Quotation changed during payment verification");
 
         jdbc.update("""
             INSERT INTO AUDIT_LOG
                 (USER_ID, ENTITY_ID, ENTITY_TYPE,
-                 ACTION, PAYMENT_ID, QUOTE_ID)
+                 ACTION, PAYMENT_ID, QUOTE_ID, CLOSURE_REQUEST_ID)
             VALUES (?, ?, 'PAYMENT',
-                    'PRE_CLOSURE_PAYMENT_VERIFIED', ?, ?)
+                    'PRE_CLOSURE_PAYMENT_VERIFIED', ?, ?, ?)
             """, borrowerId, paymentId,
-                 paymentId, q.quoteId());
+                 paymentId, q.quoteId(), requestId);
 
         Map<String, Object> updated =
                 jdbc.queryForMap("""
@@ -397,26 +415,36 @@ public class PreClosurePaymentService {
     // GET PAYMENT STATUS
    
 
+    @Transactional
     public PaymentResult status(
             long borrowerId, long requestId) {
 
+        workflow.lockOwned(borrowerId, requestId);
         QuoteInfo q = quote(borrowerId, requestId);
 
         List<Map<String, Object>> payments =
                 jdbc.queryForList("""
                     SELECT PAYMENT_ID, RAZORPAY_ORDER_ID,
-                           RAZORPAY_PAYMENT_ID, PAYMENT_STATUS
+                           RAZORPAY_PAYMENT_ID, PAYMENT_STATUS, AMOUNT
                     FROM PAYMENT
                     WHERE QUOTE_ID = ?
                     ORDER BY PAYMENT_ID DESC
                     """, q.quoteId());
 
         if (payments.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Payment has not been initiated");
+            return new PaymentResult(null, q.quoteId(), null, null, q.amount(), "NOT_STARTED", null);
         }
 
-        return result(q, payments.get(0));
+        var payment = payments.getFirst();
+        if ("INITIATED".equals(payment.get("PAYMENT_STATUS")) && "PAYMENT_PENDING".equals(q.requestStatus())
+                && "ACCEPTED".equals(q.quoteStatus()) && "ACTIVE".equals(q.loanStatus()) && q.approved()) {
+            if (new BigDecimal(payment.get("AMOUNT").toString()).compareTo(q.amount()) != 0)
+                throw conflict("Stored payment amount differs from quotation");
+            var captured = razorpay.orderPayments((String) payment.get("RAZORPAY_ORDER_ID")).stream()
+                .filter(item -> "captured".equals(item.get("status"))).toList();
+            if (captured.size() > 1) throw conflict("Multiple captured payments require manual review");
+            if (captured.size() == 1) return confirm(q, payment, captured.getFirst(), borrowerId, requestId);
+        }
+        return result(q, payment);
     }
 }

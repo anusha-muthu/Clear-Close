@@ -55,7 +55,8 @@ public class InternalExitSecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.POST, "/api/internal/loans/*/complete-cooling-off-exit")
+                .requestMatchers(HttpMethod.POST, "/api/internal/loans/*/complete-cooling-off-exit",
+                    "/api/internal/loans/*/complete-pre-closure")
                 .hasRole("EXIT_SERVICE")
                 .anyRequest().denyAll())
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(decoder)

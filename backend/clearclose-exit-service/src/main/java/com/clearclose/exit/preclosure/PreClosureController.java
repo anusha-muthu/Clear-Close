@@ -1,9 +1,14 @@
 package com.clearclose.exit.preclosure;
 
+import com.clearclose.exit.completion.FinalExitCompletionService;
+import com.clearclose.exit.preclosure.PreClosureService.PreClosureRequest;
+import com.clearclose.exit.preclosure.PreClosureService.PreClosureQuote;
+import com.clearclose.exit.preclosure.PreClosureService.PreClosureRecord;
+
 import java.util.List;
 import java.util.Map;
-
 import org.springframework.http.HttpStatus;
+
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -15,37 +20,19 @@ public class PreClosureController {
 
     private final PreClosureService service;
     private final PreClosurePaymentService payments;
+    private final FinalExitCompletionService completion;
 
     public PreClosureController(
             PreClosureService service,
-            PreClosurePaymentService payments) {
+            PreClosurePaymentService payments, FinalExitCompletionService completion) {
 
         this.service = service;
         this.payments = payments;
+        this.completion = completion;
     }
 
     private long userId(Jwt jwt) {
-
-        if (jwt == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Authentication required");
-        }
-
-        try {
-            long id = Long.parseLong(jwt.getSubject());
-
-            if (id <= 0) {
-                throw new NumberFormatException();
-            }
-
-            return id;
-
-        } catch (NumberFormatException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Invalid authenticated user ID");
-        }
+        return service.borrower(jwt);
     }
 
     // -----------------------------------------
@@ -67,9 +54,14 @@ public class PreClosureController {
     @GetMapping("/{requestId}")
     public PreClosureRecord get(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId) {
+            @PathVariable("requestId") long requestId) {
 
         return service.get(userId(jwt), requestId);
+    }
+
+    @GetMapping
+    public List<PreClosureRecord> myRequests(@AuthenticationPrincipal Jwt jwt) {
+        return service.myRequests(service.borrower(jwt));
     }
 
     // -----------------------------------------
@@ -79,10 +71,17 @@ public class PreClosureController {
     @GetMapping("/{requestId}/quote")
     public PreClosureQuote quote(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId) {
+            @PathVariable("requestId") long requestId) {
 
-        return service.get(
-                userId(jwt), requestId).quote();
+        var quote = service.get(userId(jwt), requestId).quote();
+        if (quote == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No quotation has been generated");
+        return quote;
+    }
+
+    @PostMapping("/{requestId}/quote")
+    public PreClosureQuote createQuote(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId) {
+        return service.createQuote(service.borrower(jwt), requestId);
     }
 
     // -----------------------------------------
@@ -92,7 +91,7 @@ public class PreClosureController {
     @PostMapping("/{requestId}/accept")
     public PreClosureRecord accept(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId) {
+            @PathVariable("requestId") long requestId) {
 
         return service.accept(userId(jwt), requestId);
     }
@@ -104,7 +103,7 @@ public class PreClosureController {
     @PostMapping("/{requestId}/payment/order")
     public PreClosurePaymentService.PaymentResult order(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId) {
+            @PathVariable("requestId") long requestId) {
 
         return payments.createOrder(
                 userId(jwt), requestId);
@@ -117,12 +116,14 @@ public class PreClosureController {
     @PostMapping("/{requestId}/payment/verify")
     public PreClosurePaymentService.PaymentResult verify(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId,
+            @PathVariable("requestId") long requestId,
             @RequestBody
             PreClosurePaymentService.VerifyRequest request) {
 
-        return payments.verify(
-                userId(jwt), requestId, request);
+        long borrowerId = service.borrower(jwt);
+        var result = payments.verify(borrowerId, requestId, request);
+        completion.tryCompletePreClosure(requestId);
+        return result;
     }
 
     // -----------------------------------------
@@ -132,10 +133,11 @@ public class PreClosureController {
     @GetMapping("/{requestId}/payment")
     public PreClosurePaymentService.PaymentResult paymentStatus(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId) {
+            @PathVariable("requestId") long requestId) {
 
-        return payments.status(
-                userId(jwt), requestId);
+        var result = payments.status(userId(jwt), requestId);
+        if ("SUCCESS".equals(result.status())) completion.tryCompletePreClosure(requestId);
+        return result;
     }
 
     // -----------------------------------------
@@ -143,9 +145,22 @@ public class PreClosureController {
     // -----------------------------------------
 
     @GetMapping("/officer/requests")
-    public List<Long> pendingRequests() {
+    public List<Long> pendingRequests(@AuthenticationPrincipal Jwt jwt) {
 
-        return service.pendingRequests();
+        return service.pendingRequests(service.officer(jwt));
+    }
+
+    @GetMapping("/officer/{requestId}")
+    public PreClosureRecord officerDetails(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId) {
+        return service.officerDetails(service.officer(jwt), requestId);
+    }
+
+    @PostMapping("/officer/{requestId}/assign")
+    public Map<String, String> assign(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId) {
+        service.assign(service.officer(jwt), requestId);
+        return Map.of("status", "UNDER_REVIEW");
     }
 
     // -----------------------------------------
@@ -155,12 +170,12 @@ public class PreClosureController {
     @PostMapping("/officer/{requestId}/approve")
     public Map<String, String> approve(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId) {
+            @PathVariable("requestId") long requestId) {
 
-        service.approve(userId(jwt), requestId);
+        service.approve(service.officer(jwt), requestId);
 
         return Map.of(
-                "status", "COMPLETED",
+                "status", "APPROVED",
                 "message", "Loan pre-closure approved");
     }
 
@@ -171,11 +186,11 @@ public class PreClosureController {
     @PostMapping("/officer/{requestId}/reject")
     public Map<String, String> reject(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable long requestId,
+            @PathVariable("requestId") long requestId,
             @RequestBody Map<String, String> body) {
 
         service.reject(
-                userId(jwt),
+                service.officer(jwt),
                 requestId,
                 body.get("reason"));
 

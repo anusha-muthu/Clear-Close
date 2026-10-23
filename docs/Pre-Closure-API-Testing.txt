@@ -1,0 +1,106 @@
+PRE-CLOSURE API: MANUAL TESTING
+
+Restart API Gateway (8080), Exit Service (8083), and LoanAccount (8085) after your normal build.
+Keep Auth Service, Oracle, and the other existing project dependencies running normally.
+Use the existing matching app.jwt.secret settings for user JWTs. The existing
+clearclose.internal.exit-secret must match in Exit Service and LoanAccount.
+No new database columns are required against backend/db/consolidated.db.
+
+All URLs below use http://localhost:8080. Set Authorization: Bearer <token>.
+Use a borrower token for borrower actions and a LOAN_CLOSURE_OFFICER token for officer actions.
+Content-Type: application/json when sending a JSON body.
+requestId is a CLOSURE_REQUEST_ID, NOT a cooling-off EXIT_REQUEST_ID or quote ID.
+
+1. BORROWER: POST /api/pre-closures
+   Body: {"loanId": YOUR_LOAN_ID, "reason": "I want to repay my loan early"}
+   Use an owned active loan, before maturity, with an active rule allowing early closure.
+   It must have no active cooling-off/other closure request.
+   Expected: status PENDING, quote null. Save closureRequestId as requestId.
+   GET /api/pre-closures lists this borrower's requests, including requests from previous sessions.
+
+2. OFFICER: GET /api/pre-closures/officer/requests
+   Returns IDs available to this officer, including their assigned requests.
+   GET /api/pre-closures/officer/{requestId} returns request details.
+   POST /api/pre-closures/officer/{requestId}/assign (no body)
+   Expected: UNDER_REVIEW. Assignment prevents a different officer from deciding this request.
+
+3. OFFICER: POST /api/pre-closures/officer/{requestId}/approve (no body)
+   Expected: APPROVED. Approval does not close the loan or collect money.
+   Alternatively POST /api/pre-closures/officer/{requestId}/reject
+   Body: {"reason": "Reason for rejection"}. Allowed only while awaiting review.
+   The borrower's original reason is retained; the rejection reason is stored in AUDIT_LOG.
+   The officer cannot review their own borrower loan.
+
+4. BORROWER: POST /api/pre-closures/{requestId}/quote (no body)
+   Expected: AVAILABLE quote with a 15-minute validity from Oracle's current time.
+   GET /api/pre-closures/{requestId}/quote reads the quote.
+   Quote generation/acceptance before approval must fail with 409.
+   Repeating generation reuses an unexpired available quote; an expired unaccepted
+   quote can be regenerated. Accepted quotes are never repriced or replaced.
+
+5. BORROWER: POST /api/pre-closures/{requestId}/accept (no body)
+   Expected: request PAYMENT_PENDING, quote ACCEPTED.
+
+6. BORROWER: POST /api/pre-closures/{requestId}/payment/order (no body)
+   Expected: INITIATED payment with Razorpay order ID, amount in rupees, and test key ID.
+   Use Razorpay Test Checkout with this order. Do not use real payment details.
+   Repeated order requests reuse the recorded initiated order.
+   No checkout can be opened after VALID_UNTIL, including accepted quotes.
+
+7. BORROWER: POST /api/pre-closures/{requestId}/payment/verify
+   Body: {"razorpayOrderId":"order_...", "razorpayPaymentId":"pay_...", "razorpaySignature":"..."}
+   Use the actual values returned by successful Razorpay Test Checkout.
+   Backend checks the signature, provider's captured payment, currency, order and amount.
+   Expected: payment SUCCESS. LoanAccount then validates the full workflow using its service JWT,
+   closes the loan with zero outstanding, then Exit Service marks the request COMPLETED.
+   A committed LoanAccount closure audit lets Exit safely retry if the second step fails.
+
+8. BORROWER: GET /api/pre-closures/{requestId}/payment
+   Reconciles captured payments if the browser callback was lost. Existing orders can
+   be reconciled after expiry; this does not allow a new checkout after expiry.
+   GET /api/pre-closures/{requestId} should show COMPLETED and quote PAID after closure.
+   If LoanAccount is temporarily unavailable, payment stays SUCCESS, request stays
+   PAYMENT_PENDING, and completion retries every 30 seconds. Do not pay again.
+   Repeating verification/refresh must not close or charge the loan a second time.
+
+ACCESS CHECKS
+- No JWT: 401. Wrong account role: 403, at gateway and Exit Service.
+- Another borrower's request: 404. Disabled account: 403.
+- An officer assigned elsewhere or reviewing their own borrower loan: 403.
+- Borrower JWTs cannot invoke LoanAccount's internal completion endpoint.
+- A loan with an active foreclosure request cannot create a competing cooling-off request, and vice versa.
+
+CALCULATION LIMITATION (EXISTING DEMO BEHAVIOR)
+Foreclosure uses LOAN_PRODUCT_RULE.CLOSURE_CHARGE_TYPE / CLOSURE_CHARGE_VALUE:
+NONE = 0, FIXED = rule amount, PERCENTAGE = outstanding principal * rule value / 100.
+The cooling-off processing fee of 500 is a different rule and is not applied here.
+Tax remains the existing demo assumption of 18% of foreclosure charges.
+Interest remains 0 because no accrued-interest / repayment ledger is implemented.
+Do not treat this as a complete real-bank foreclosure payoff calculation.
+Example: principal 400000, percentage charge 2 => charges 8000, tax 1440, total 409440.
+
+COMPATIBILITY
+This replaces the previous payment-before-approval behavior. Use a fresh unpaid request
+for manual testing. Old paid UNDER_REVIEW records need individual review; do not reset
+payments, change settled amounts, or blindly replay approval against those records.
+This backend change does not add a foreclosure page to the frontend, an additional-
+information conversation, automatic NOC generation, or foreclosure Kafka events.
+Cooling-off retains its existing Kafka payment/completion workflow.
+
+TEST SOURCE FILES ADDED (NOT RUN)
+Exit Service: PreClosureServiceTest (nested Workflow, IdentityChecks and Payments groups).
+LoanAccount: LoanClosureServiceTest.
+No builds, tests, services or database scripts were executed for this change.
+
+SIMPLIFIED CODE ORGANIZATION
+The preclosure package now has only three main files:
+- PreClosureController.java: HTTP endpoints and delegation.
+- PreClosureService.java: JWT identity checks, request/quote records, approval and quotation workflow.
+- PreClosurePaymentService.java: Razorpay orders, verification and payment reconciliation.
+Shared code is kept in the existing services/configuration:
+- FinalExitCompletionService.java: cooling-off and foreclosure completion orchestration/retries.
+- LoanClosureService.java in LoanAccount: final loan closure for both workflows
+  (renamed from CoolingOffLoanClosureService.java).
+- Gateway SecurityConfig.java: gateway permissions and the pre-closure route.
+The remote call remains outside the workflow database transaction.
+When you build manually, use a clean build so removed/renamed compiled classes are cleared.
