@@ -9,7 +9,7 @@ import Footer from "./components/Footer";
 import BorrowerLogin from "./pages/BorrowerLogin";
 import BorrowerDashboard from "./pages/BorrowerDashboard";
 import OfficerLogin from "./pages/OfficerLogin";
-import OfficerDashboard from "./pages/OfficerDashboard";
+import LoanClosureDashboard from "./pages/LoanClosureDashboard";
 
 import GrievanceDashboard from "./pages/GrievanceDashboard";
 import GrievanceOfficerDashboard from "./pages/GrievanceOfficerDashboard";
@@ -188,6 +188,11 @@ function App() {
     );
   }
 
+  // Preserve existing bookmarks while keeping closure and grievance dashboards separate.
+  if (route === "#officer-dashboard") {
+    return <Redirect to={OFFICER_PORTALS.closure.dashboard} />;
+  }
+
   // Officer dashboard routes.
   const dashboardEntry = Object.entries(OFFICER_PORTALS).find(
     ([, config]) => config.dashboard === route
@@ -219,10 +224,10 @@ function App() {
       );
     }
 
-    // Keep the existing cooling-off dashboard.
+    // The closure portal owns the existing cooling-off review workflow.
     if (portal === "closure") {
       return (
-        <OfficerDashboard
+        <LoanClosureDashboard
           session={session}
           onLogout={handleLogout}
         />

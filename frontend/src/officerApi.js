@@ -8,7 +8,7 @@ export const OFFICER_PORTALS = {
     title: "Loan Closure Officer Login",
     description: "Manage cooling-off and loan closure requests.",
     roles: ["LOAN_CLOSURE_OFFICER", "ADMIN"],
-    dashboard: "#officer-dashboard",
+    dashboard: "#loan-closure-dashboard",
   },
 
   grievance: {
