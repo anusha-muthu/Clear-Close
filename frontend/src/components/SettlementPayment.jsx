@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { createSettlementOrder, getSettlementPayment, verifySettlementPayment } from "../api";
+import { createSettlementOrder, getSettlementPayment, verifySettlementPayment,
+  createPreClosureOrder, getPreClosurePayment, verifyPreClosurePayment } from "../api";
 
 let checkoutScript;
 function loadCheckout() {
@@ -34,7 +35,7 @@ const money = (value) => new Intl.NumberFormat("en-IN", {
   style: "currency", currency: "INR",
 }).format(value);
 
-export default function SettlementPayment({ token, quoteId, approved, username, onRefresh }) {
+export default function SettlementPayment({ token, quoteId, approved, username, onRefresh, preClosureRequestId }) {
   const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +48,12 @@ export default function SettlementPayment({ token, quoteId, approved, username, 
   useEffect(() => {
     mounted.current = true;
     let current = true;
-    getSettlementPayment(token, quoteId)
+    setLoading(true);
+    setError("");
+    const status = preClosureRequestId != null
+      ? getPreClosurePayment(token, preClosureRequestId)
+      : getSettlementPayment(token, quoteId);
+    status
       .then((data) => { if (current) setPayment(data); })
       .catch((err) => { if (current) setError(err.message); })
       .finally(() => { if (current) setLoading(false); });
@@ -56,7 +62,7 @@ export default function SettlementPayment({ token, quoteId, approved, username, 
       mounted.current = false;
       checkout.current?.close();
     };
-  }, [token, quoteId]);
+  }, [token, quoteId, preClosureRequestId]);
 
   async function refresh() {
     if (processing.current) return;
@@ -65,7 +71,9 @@ export default function SettlementPayment({ token, quoteId, approved, username, 
     setError("");
     setNotice("");
     try {
-      const data = await getSettlementPayment(token, quoteId);
+      const data = preClosureRequestId != null
+        ? await getPreClosurePayment(token, preClosureRequestId)
+        : await getSettlementPayment(token, quoteId);
       if (mounted.current) setPayment(data);
       if (data.paymentStatus === "SUCCESS" && mounted.current) await onRefresh?.();
     } catch (err) {
@@ -83,7 +91,9 @@ export default function SettlementPayment({ token, quoteId, approved, username, 
     setError("");
     setNotice("");
     try {
-      const order = await createSettlementOrder(token, quoteId);
+      const order = preClosureRequestId != null
+        ? await createPreClosureOrder(token, preClosureRequestId)
+        : await createSettlementOrder(token, quoteId);
       if (!mounted.current) return;
       setPayment(order);
       if (order.paymentStatus === "SUCCESS" || !order.payable) return;
@@ -124,7 +134,9 @@ export default function SettlementPayment({ token, quoteId, approved, username, 
             if (verifying || finished) return;
             verifying = true;
             try {
-              const verified = await verifySettlementPayment(token, response);
+              const verified = preClosureRequestId != null
+                ? await verifyPreClosurePayment(token, preClosureRequestId, response)
+                : await verifySettlementPayment(token, response);
               if (mounted.current) setPayment(verified);
               if (verified.paymentStatus === "SUCCESS" && mounted.current) await onRefresh?.();
               finish();
@@ -163,8 +175,10 @@ export default function SettlementPayment({ token, quoteId, approved, username, 
               <div><dt>Payment ID</dt><dd>{payment.paymentId}</dd></div>
               <div><dt>Razorpay Payment ID</dt><dd className="break-all">{payment.razorpayPaymentId}</dd></div>
               <div><dt>Amount Paid</dt><dd>{money(payment.amount)}</dd></div>
-              <div><dt>Payment Date</dt><dd>{payment.paymentDate?.replace("T", " ") || "N/A"}</dd></div>
-              <div><dt>Method</dt><dd>{payment.method || "Not mapped to the existing database methods"}</dd></div>
+              {preClosureRequestId == null && <>
+                <div><dt>Payment Date</dt><dd>{payment.paymentDate?.replace("T", " ") || "N/A"}</dd></div>
+                <div><dt>Method</dt><dd>{payment.method || "Not mapped to the existing database methods"}</dd></div>
+              </>}
             </dl>
           )}
         </>

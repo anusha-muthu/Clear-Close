@@ -4,6 +4,7 @@ import GrievanceDashboard from "./GrievanceDashboard";
 import CollateralReleaseDashboard from "./CollateralReleaseDashboard";
 import SettlementPayment from "../components/SettlementPayment";
 import RequestInformation from "../components/RequestInformation";
+import PreClosure from "../components/PreClosure";
 import {
   acceptSettlementQuote,
   checkCoolingOffEligibility,
@@ -177,6 +178,10 @@ function DetailField({ label, value }) {
 function BorrowerDashboard({ session, onLogout }) {
 
   const [activeMenu, setActiveMenu] = useState("overview");
+  const [preClosureLoanId, setPreClosureLoanId] = useState(null);
+  const [coolingOffLoanId, setCoolingOffLoanId] = useState("");
+  const coolingOffDetailsRef = useRef(null);
+  const requestSubmittingRef = useRef(false);
 
   const [loans, setLoans] = useState([]);
 
@@ -245,20 +250,31 @@ function BorrowerDashboard({ session, onLogout }) {
 
   async function handleSubmitCoolingOffRequest(event) {
     event.preventDefault();
-    const loan = loans.find((item) => String(item.loanId) === String(requestLoanId));
+    if (requestSubmittingRef.current) return;
+    const formLoanId = activeMenu === "cooling-off" ? coolingOffLoanId : requestLoanId;
+    const loan = loans.find((item) => String(item.loanId) === String(formLoanId));
     const reason = requestReason.trim();
-    const loanKey = String(requestLoanId);
+    const loanKey = String(formLoanId);
 
-    if (!loan || !reason || reason.length > 1000) {
+    if (!loan || !reason || new TextEncoder().encode(reason).length > 1000) {
       setRequestErrors((current) => ({
         ...current,
         [loanKey]: !loan
           ? "Select a loan from your account before submitting."
-          : "Enter a reason of up to 1000 characters.",
+          : "Enter a reason within the allowed length.",
       }));
       return;
     }
 
+    if (activeMenu === "cooling-off" && (loan.loanStatus !== "ACTIVE" || requestListLoading || requestListError
+        || !eligibilityResults[loanKey]?.eligible || eligibilityLoading[loanKey]
+        || coolingOffRequests.some((request) => String(request.loanId) === loanKey &&
+          ["PENDING", "UNDER_REVIEW", "MORE_INFO_REQUIRED", "APPROVED"].includes(request.status)))) {
+      setRequestErrors((current) => ({ ...current, [loanKey]: "Refresh eligibility and request status before submitting. If a request is already active, continue with that request." }));
+      return;
+    }
+
+    requestSubmittingRef.current = true;
     setRequestSubmitting(true);
     setRequestErrors((current) => ({ ...current, [loanKey]: "" }));
 
@@ -267,12 +283,29 @@ function BorrowerDashboard({ session, onLogout }) {
       setRequestResults((current) => ({ ...current, [loanKey]: result }));
       setRequestReason("");
       setRequestLoanId(null);
+      setCoolingOffRequests((current) => [result, ...current.filter((item) => String(item.exitRequestId) !== String(result.exitRequestId))]);
+      if (activeMenu === "cooling-off") setSelectedRequestId(result.exitRequestId);
       setRequestRefreshCount((count) => count + 1);
     } catch (requestError) {
       setRequestErrors((current) => ({ ...current, [loanKey]: requestError.message }));
     } finally {
+      requestSubmittingRef.current = false;
       setRequestSubmitting(false);
     }
+  }
+
+  useEffect(() => {
+    if (activeMenu === "cooling-off" && selectedRequestId != null) {
+      coolingOffDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [activeMenu, selectedRequestId]);
+
+  function changeMenu(menu) {
+    if (requestSubmitting || acceptingQuote) return;
+    setSelectedRequestId(null);
+    setRequestLoanId(null);
+    setAcceptanceConfirmationOpen(false);
+    setActiveMenu(menu);
   }
 
   // -----------------------------------------
@@ -592,9 +625,311 @@ function BorrowerDashboard({ session, onLogout }) {
   // -----------------------------------------
 
   const menuItems = [
+    { id: "cooling-off", icon: "↶", label: "Cooling-off Exit" },
+    { id: "preclosure", icon: "↗", label: "Pre-closure" },
     { id: "overview", icon: "▦", label: "Overview" },
     { id: "my-loans", icon: "◫", label: "My Loans" },
   ];
+
+  const coolingPageLoans = loans.filter((loan) => loan.loanStatus === "ACTIVE");
+  const coolingPageLoan = coolingPageLoans.find((loan) => String(loan.loanId) === coolingOffLoanId);
+  const coolingPageEligibility = eligibilityResults[coolingOffLoanId];
+  const coolingPageActiveRequest = coolingOffRequests.find((request) => String(request.loanId) === coolingOffLoanId &&
+    ["PENDING", "UNDER_REVIEW", "MORE_INFO_REQUIRED", "APPROVED"].includes(request.status));
+  const coolingPageRequests = [...coolingOffRequests].sort((a, b) => Number(b.exitRequestId) - Number(a.exitRequestId));
+  const coolingReasonBytes = new TextEncoder().encode(requestReason.trim()).length;
+
+  // Reuse the existing quote, information and payment details inline on the new page.
+  const coolingOffDetails = selectedRequestId != null && (
+        <div
+          ref={coolingOffDetailsRef}
+          className={activeMenu === "cooling-off" ? "mt-6" : "fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (activeMenu !== "cooling-off" && event.target === event.currentTarget) setSelectedRequestId(null);
+          }}
+        >
+          <section
+            role={activeMenu === "cooling-off" ? "region" : "dialog"}
+            aria-modal={activeMenu === "cooling-off" ? undefined : true}
+            aria-labelledby="exit-request-details-title"
+            className={activeMenu === "cooling-off" ? "w-full rounded-2xl border border-gray-200 bg-white p-6 sm:p-8" : "max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl sm:p-8"}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="dashboard-eyebrow">Cooling-Off Exit</p>
+                <h2 id="exit-request-details-title" className="mt-2 text-2xl font-semibold">
+                  Exit Request Details
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRequestId(null)}
+                aria-label="Close request details"
+                className="rounded-full px-3 py-2 text-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              >
+                ×
+              </button>
+            </div>
+
+            {requestListError && (
+              <p role="alert" className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                {requestListError}
+              </p>
+            )}
+
+            {selectedRequestDetails && (() => {
+              const loanRequests = coolingOffRequests
+                .filter((request) => String(request.loanId) === String(selectedRequestDetails.loanId))
+                .sort((a, b) => {
+                  const dateA = Date.parse(a.requestDate || a.createdAt || "") || 0;
+                  const dateB = Date.parse(b.requestDate || b.createdAt || "") || 0;
+                  if (dateA !== dateB) return dateB - dateA;
+                  return Number(b.exitRequestId) - Number(a.exitRequestId);
+                });
+              const statusMessage = requestStatusMessages[selectedRequestDetails.status];
+              const quoteStatus = settlementQuote?.quoteStatus;
+              const quoteIsAcceptedOrPaid = ["ACCEPTED", "PAID"].includes(quoteStatus);
+              const quoteIsExpired = !quoteIsAcceptedOrPaid && (
+                quoteStatus === "EXPIRED" || (quoteStatus === "AVAILABLE" && settlementQuote?.expired === true)
+              );
+              const canGenerateFirstQuote = selectedRequestDetails.status === "APPROVED";
+              const canGenerateQuote = settlementQuoteLoaded && !settlementQuoteError && !quoteIsAcceptedOrPaid && (
+                (!settlementQuote && canGenerateFirstQuote) ||
+                (settlementQuote && quoteIsExpired && selectedRequestDetails.status === "APPROVED")
+              );
+              const canAcceptQuote = selectedRequestDetails.status === "APPROVED" &&
+                settlementQuote?.quoteStatus === "AVAILABLE" &&
+                settlementQuote?.expired === false &&
+                settlementQuote?.quoteId != null;
+
+              return (
+                <>
+                  {loanRequests.length > 1 && (
+                    <div className="mt-6">
+                      <p className="mb-2 text-sm font-medium text-gray-700">Other requests for this loan</p>
+                      <div className="flex flex-wrap gap-2">
+                        {loanRequests.map((request) => (
+                          <button
+                            key={request.exitRequestId}
+                            type="button"
+                            onClick={() => setSelectedRequestId(request.exitRequestId)}
+                            className={`rounded-lg border px-3 py-2 text-sm ${
+                              String(request.exitRequestId) === String(selectedRequestId)
+                                ? "border-green-700 bg-green-50 text-green-900"
+                                : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                            }`}
+                          >
+                            #{request.exitRequestId} · {requestStatusLabels[request.status] || request.status || "N/A"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gray-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700">Request Status</span>
+                      <RequestStatusBadge status={selectedRequestDetails.status} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRefreshRequest(selectedRequestId)}
+                      disabled={refreshingRequestId === String(selectedRequestId)}
+                      className="rounded-lg border border-green-700 bg-white px-4 py-2 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:opacity-60"
+                    >
+                      {refreshingRequestId === String(selectedRequestId) ? "Refreshing..." : "Refresh Status"}
+                    </button>
+                  </div>
+
+                  {requestDetailsLoading && (
+                    <p className="mt-4 text-sm text-gray-500">Refreshing request details...</p>
+                  )}
+                  {(requestDetailsError || requestRefreshErrors[String(selectedRequestId)]) && (
+                    <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                      {requestDetailsError || requestRefreshErrors[String(selectedRequestId)]}
+                    </p>
+                  )}
+
+                  {statusMessage && (
+                    <p className="mt-4 rounded-lg bg-green-50 p-4 text-sm text-green-900">
+                      {statusMessage}
+                    </p>
+                  )}
+
+                  <RequestInformation
+                    key={selectedRequestDetails.exitRequestId}
+                    token={session.token}
+                    requestId={selectedRequestDetails.exitRequestId}
+                    status={selectedRequestDetails.status}
+                    onSubmitted={(updated) => {
+                      setSelectedRequestDetails(updated);
+                      setCoolingOffRequests((current) => current.map((request) =>
+                        String(request.exitRequestId) === String(updated.exitRequestId) ? updated : request,
+                      ));
+                      setRequestRefreshCount((count) => count + 1);
+                    }}
+                  />
+
+                  <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <DetailField label="Exit Request ID" value={selectedRequestDetails.exitRequestId} />
+                    <DetailField label="Loan ID" value={selectedRequestDetails.loanId} />
+                    <DetailField label="Loan Reference" value={selectedRequestDetails.loanReference} />
+                    <DetailField label="Loan Status" value={loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.loanStatus} />
+                    <DetailField label="Outstanding Amount" value={formatQuoteCurrency(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.outstandingAmount)} />
+                    <DetailField label="Closure Date" value={formatDate(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.closureDate)} />
+                    <DetailField label="Reason for Exit" value={selectedRequestDetails.reason} />
+                    <DetailField label="Request Date" value={formatDate(selectedRequestDetails.requestDate || selectedRequestDetails.createdAt)} />
+                    <DetailField label="Cooling-Off Expiry Date" value={formatDate(selectedRequestDetails.expiryDate)} />
+                    <DetailField label="Assigned Officer ID" value={selectedRequestDetails.officerId} />
+                    <DetailField label="Decision Date" value={formatDate(selectedRequestDetails.decidedAt)} />
+                    <DetailField label="Last Updated Date" value={formatDate(selectedRequestDetails.updatedAt)} />
+                  </div>
+
+                  <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="dashboard-eyebrow">Settlement Quote</p>
+                        <h3 className="mt-2 text-xl font-semibold">
+                          {settlementQuote ? `Settlement Quote — #${settlementQuote.quoteId ?? "N/A"}` : "Settlement Quote"}
+                        </h3>
+                      </div>
+                      {settlementQuote?.quoteStatus && (
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          quoteStatus === "ACCEPTED" || quoteStatus === "PAID"
+                            ? "bg-green-100 text-green-800"
+                            : quoteIsExpired
+                              ? "bg-red-100 text-red-800"
+                              : "bg-blue-100 text-blue-800"
+                        }`}>
+                          {quoteStatus}
+                        </span>
+                      )}
+                    </div>
+
+                    {settlementQuoteLoading && (
+                      <p className="mt-4 text-sm text-gray-500">Loading settlement quote...</p>
+                    )}
+                    {settlementQuoteError && (
+                      <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                        {settlementQuoteError}
+                      </p>
+                    )}
+                    {!settlementQuoteLoading && !settlementQuoteError && settlementQuoteLoaded && !settlementQuote && (
+                      <p className="mt-4 text-sm text-gray-600">No settlement quote generated yet.</p>
+                    )}
+
+                    {settlementQuote && (
+                      <>
+                        {quoteIsExpired && (
+                          <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                            <strong>Quote Expired.</strong> This quote is no longer valid. You can request a new quote if the approved exit request is still eligible.
+                          </p>
+                        )}
+                        {quoteStatus === "PAID" && (
+                          <p className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-900">
+                            This settlement quote has been paid.
+                          </p>
+                        )}
+                        {(quoteStatus === "ACCEPTED" || quoteStatus === "PAID") && (
+                          <section className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-950">
+                            <h4 className="font-semibold">Settlement Quote Accepted Successfully</h4>
+                            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                              <div><dt className="font-medium">Quote ID</dt><dd>{settlementQuote.quoteId ?? "N/A"}</dd></div>
+                              <div><dt className="font-medium">Loan Reference</dt><dd>{selectedRequestDetails.loanReference || "N/A"}</dd></div>
+                              <div><dt className="font-medium">Quote Status</dt><dd>{settlementQuote.quoteStatus}</dd></div>
+                              <div><dt className="font-medium">Accepted At</dt><dd>{formatDateTime(settlementQuote.acceptedAt)}</dd></div>
+                            </dl>
+                            <div className="mt-4 rounded-lg bg-white/80 p-3">
+                              <p className="text-sm font-medium">Total Accepted Amount</p>
+                              <p className="mt-1 text-xl font-bold">{formatQuoteCurrency(settlementQuote.totalAmount)}</p>
+                            </div>
+                            <SettlementPayment
+                              key={settlementQuote.quoteId}
+                              token={session.token}
+                              quoteId={settlementQuote.quoteId}
+                              approved={selectedRequestDetails.status === "APPROVED"}
+                              username={session.username}
+                              onRefresh={() => handleRefreshRequest(selectedRequestDetails.exitRequestId)}
+                            />
+                          </section>
+                        )}
+                        <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <DetailField label="Quote ID" value={settlementQuote.quoteId} />
+                          <DetailField label="Loan ID" value={settlementQuote.loanId} />
+                          <DetailField label="Exit Request ID" value={settlementQuote.exitRequestId} />
+                          <DetailField label="Quote Type" value={settlementQuote.quoteType} />
+                          <DetailField label="Principal Amount" value={formatQuoteCurrency(settlementQuote.principalAmount)} />
+                          <DetailField label="Interest Amount" value={formatQuoteCurrency(settlementQuote.interestAmount)} />
+                          <DetailField label="Processing Fee" value={formatQuoteCurrency(settlementQuote.chargesAmount)} />
+                          <DetailField label="Tax Amount" value={formatQuoteCurrency(settlementQuote.taxAmount)} />
+                          <DetailField label="Quote Generated Date" value={formatDateTime(settlementQuote.createdAt)} />
+                          <DetailField label="Valid Until" value={formatDateTime(settlementQuote.validUntil)} />
+                          <DetailField label="Accepted At" value={formatDateTime(settlementQuote.acceptedAt)} />
+                        </dl>
+                        <div className="mt-5 rounded-xl bg-lime-50 p-4">
+                          <p className="text-sm font-medium text-gray-700">Total Settlement Amount</p>
+                          <p className="mt-1 text-2xl font-bold text-[#102018]">
+                            {formatQuoteCurrency(settlementQuote.totalAmount)}
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    {canGenerateQuote && (
+                      <button
+                        type="button"
+                        onClick={handleGenerateSettlementQuote}
+                        disabled={quoteGenerating}
+                        className="mt-5 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {quoteGenerating
+                          ? "Generating quote..."
+                          : quoteIsExpired
+                            ? "Generate New Quote"
+                            : "Generate Settlement Quote"}
+                      </button>
+                    )}
+
+                    {canAcceptQuote && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAcceptanceAcknowledged(false);
+                          setAcceptanceError("");
+                          setAcceptanceConfirmationOpen(true);
+                        }}
+                        className="ml-0 mt-4 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800 sm:ml-3"
+                      >
+                        Accept Settlement Quote
+                      </button>
+                    )}
+                    {acceptanceError && !acceptanceConfirmationOpen && (
+                      <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                        {acceptanceError}
+                      </p>
+                    )}
+                    {quoteRefreshError && (
+                      <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                        {quoteRefreshError}
+                      </p>
+                    )}
+                  </section>
+                </>
+              );
+            })()}
+
+            {requestDetailsLoading && !selectedRequestDetails && (
+              <p className="mt-6 text-gray-500">Loading request details...</p>
+            )}
+            {requestDetailsError && !selectedRequestDetails && (
+              <p role="alert" className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                {requestDetailsError}
+              </p>
+            )}
+          </section>
+        </div>
+      );
 
   // -----------------------------------------
   // RENDER
@@ -627,7 +962,7 @@ function BorrowerDashboard({ session, onLogout }) {
                   ? "sidebar-link active"
                   : "sidebar-link"
               }
-              onClick={() => setActiveMenu(item.id)}
+              onClick={() => changeMenu(item.id)}
             >
               <span>{item.icon}</span>
               {item.label}
@@ -677,8 +1012,8 @@ function BorrowerDashboard({ session, onLogout }) {
 
             <input
               aria-label="Search loans"
-              disabled={activeMenu === "grievance" || activeMenu === "collateral"}
-              placeholder={activeMenu === "grievance" || activeMenu === "collateral" ? "Use the search inside the selected feature" : "Search loan ID, reference, type..."}
+              disabled={["grievance", "collateral", "preclosure", "cooling-off"].includes(activeMenu)}
+              placeholder={["grievance", "collateral", "preclosure", "cooling-off"].includes(activeMenu) ? "Use the selected feature below" : "Search loan ID, reference, type..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -693,7 +1028,7 @@ function BorrowerDashboard({ session, onLogout }) {
                 key={feature.id}
                 type="button"
                 aria-pressed={activeMenu === feature.id}
-                onClick={() => setActiveMenu(feature.id)}
+                onClick={() => changeMenu(feature.id)}
                 className={
                   "rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-700 " +
                   (activeMenu === feature.id
@@ -717,7 +1052,112 @@ function BorrowerDashboard({ session, onLogout }) {
         </header>
 
         <div className="dashboard-content">
-          {activeMenu === "grievance" ? (
+          {activeMenu === "cooling-off" ? (
+            <section className="min-w-0 space-y-6" aria-label="Cooling-off exit">
+              <header className="flex flex-wrap items-start justify-between gap-4">
+                <div><p className="dashboard-eyebrow">Loan Closure</p>
+                  <h2 className="mt-2 text-3xl font-semibold">Cooling-off Exit</h2>
+                  <p className="dashboard-muted mt-2">Exit a recently disbursed loan within its cooling-off period.</p>
+                </div>
+                <button type="button" className="dashboard-outline-button"
+                  disabled={loading || requestListLoading || requestSubmitting || acceptingQuote || refreshingRequestId != null}
+                  onClick={() => {
+                    setRefreshCount((count) => count + 1);
+                    setRequestRefreshCount((count) => count + 1);
+                    if (coolingPageLoan) handleCheckEligibility(coolingPageLoan.loanId);
+                    if (selectedRequestId != null) handleRefreshRequest(selectedRequestId);
+                  }}>Refresh Status</button>
+              </header>
+              <div className="rounded-2xl bg-[#24351c] p-6 text-white">
+                <p className="font-semibold">Eligibility → Request → Officer approval → Quotation → Acceptance → Payment → Closure</p>
+                <p className="mt-2 text-sm">Review the settlement amount, processing fee and payment deadline before accepting your quotation.</p>
+              </div>
+
+              <form onSubmit={handleSubmitCoolingOffRequest} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+                <h3 className="text-xl font-semibold">Request Cooling-off Exit</h3>
+                {loading && <p>Loading your loans...</p>}
+                {error && <p role="alert" className="text-red-700">{error}</p>}
+                {!loading && !error && !coolingPageLoans.length && <p>No active loans are available for a new request.</p>}
+                <label className="block text-sm font-semibold">Loan
+                  <select required value={coolingOffLoanId} disabled={loading || requestSubmitting || acceptingQuote}
+                    className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3"
+                    onChange={(event) => {
+                      const id = event.target.value;
+                      setCoolingOffLoanId(id); setRequestReason(""); setSelectedRequestId(null);
+                      setRequestErrors((current) => ({ ...current, [id]: "" }));
+                      if (id) handleCheckEligibility(id);
+                    }}>
+                    <option value="">Select an active loan</option>
+                    {coolingPageLoans.map((loan) => <option key={loan.loanId} value={loan.loanId}>
+                      {formatLoanType(loan.productType)} · Loan #{loan.loanId} · {formatCurrency(loan.outstandingAmount)}
+                    </option>)}
+                  </select>
+                </label>
+                {coolingPageLoan && <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <DetailField label="Loan Reference" value={coolingPageLoan.loanReference} />
+                    <DetailField label="Outstanding Amount" value={formatCurrency(coolingPageLoan.outstandingAmount)} />
+                    <DetailField label="Cooling-off Duration" value={`${coolingPageLoan.coolingOffDays ?? 0} days`} />
+                    <DetailField label="Cooling-off Expiry" value={formatDateTime(coolingPageEligibility?.expiryDate ?? coolingPageLoan.coolingOffExpiry)} />
+                  </div>
+                  <button type="button" disabled={Boolean(eligibilityLoading[coolingOffLoanId]) || requestSubmitting}
+                    onClick={() => handleCheckEligibility(coolingPageLoan.loanId)}
+                    className="rounded-xl border border-green-700 px-4 py-3 text-sm font-semibold text-green-800 disabled:opacity-50">
+                    {eligibilityLoading[coolingOffLoanId] ? "Checking eligibility..." : "Check Eligibility"}
+                  </button>
+                </>}
+                {eligibilityErrors[coolingOffLoanId] && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">{eligibilityErrors[coolingOffLoanId]}</p>}
+                {coolingPageEligibility && !eligibilityLoading[coolingOffLoanId] && <div
+                  className={`rounded-xl p-4 ${coolingPageEligibility.eligible ? "bg-green-50 text-green-900" : "bg-amber-50 text-amber-900"}`}>
+                  <p className="font-semibold">{coolingPageEligibility.eligible ? "Eligible for Cooling-off Exit" : "Not Eligible for a New Cooling-off Request"}</p>
+                  <p className="mt-2 text-sm">{coolingPageEligibility.reason}</p>
+                </div>}
+                {coolingPageActiveRequest && <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
+                  <p>Request #{coolingPageActiveRequest.exitRequestId} is already active for this loan. Continue with the existing request.</p>
+                  <button type="button" className="mt-2 font-semibold underline" disabled={requestSubmitting}
+                    onClick={() => setSelectedRequestId(coolingPageActiveRequest.exitRequestId)}>View Existing Request</button>
+                </div>}
+                <label className="block text-sm font-semibold">Reason for exit
+                  <textarea required rows={3} maxLength={1000} value={requestReason} disabled={requestSubmitting}
+                    onChange={(event) => setRequestReason(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-gray-300 p-3" placeholder="Tell us why you want to exit this loan" />
+                </label>
+                {coolingReasonBytes > 1000 && <p role="alert" className="text-sm text-red-700">Shorten your reason; it exceeds the allowed length.</p>}
+                {requestErrors[coolingOffLoanId] && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">{requestErrors[coolingOffLoanId]}</p>}
+                <p className="text-sm text-gray-500">Eligibility is confirmed on submission. A loan cannot have active cooling-off and pre-closure requests together.</p>
+                <button type="submit" className="rounded-xl border border-green-700 px-4 py-3 text-sm font-semibold text-green-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={requestSubmitting || acceptingQuote || loading || requestListLoading || Boolean(requestListError) || !coolingPageLoan || !requestReason.trim()
+                    || coolingReasonBytes > 1000 || !coolingPageEligibility?.eligible || Boolean(eligibilityLoading[coolingOffLoanId]) || Boolean(coolingPageActiveRequest)}>
+                  {requestSubmitting ? "Submitting..." : "Submit Cooling-off Exit Request"}
+                </button>
+              </form>
+
+              <section aria-label="Your cooling-off requests">
+                <h3 className="mb-4 text-xl font-semibold">Your Cooling-off Exit Requests</h3>
+                {requestListLoading && <p>Loading requests...</p>}
+                {requestListError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-700">{requestListError}</p>}
+                {!requestListLoading && !requestListError && !coolingPageRequests.length && <p className="rounded-xl bg-white p-6">No cooling-off exit requests submitted yet.</p>}
+                <div className="grid gap-4 lg:grid-cols-2">{coolingPageRequests.map((request) => <article key={request.exitRequestId}
+                  className="min-w-0 rounded-2xl border border-gray-200 bg-white p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold">Request #{request.exitRequestId} · Loan #{request.loanId}</h4>
+                    <RequestStatusBadge status={request.status} /></div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <DetailField label="Loan Reference" value={request.loanReference} />
+                    <DetailField label="Request Date" value={formatDateTime(request.requestDate || request.createdAt)} />
+                    <DetailField label="Assigned Officer" value={request.officerId ?? "Unassigned"} />
+                    <DetailField label="Cooling-off Expiry" value={formatDateTime(request.expiryDate)} />
+                  </div>
+                  <button type="button" disabled={requestSubmitting || acceptingQuote}
+                    className="mt-4 w-full rounded-xl border border-green-700 px-4 py-3 text-sm font-semibold text-green-800 disabled:opacity-50"
+                    onClick={() => setSelectedRequestId(request.exitRequestId)}>View Request Details</button>
+                </article>)}</div>
+              </section>
+              {coolingOffDetails}
+            </section>
+          ) : activeMenu === "preclosure" ? (
+            <PreClosure session={session} loans={loans} loansLoading={loading} loansError={error}
+              initialLoanId={preClosureLoanId} onLoansRefresh={() => setRefreshCount((count) => count + 1)} />
+          ) : activeMenu === "grievance" ? (
             <GrievanceDashboard session={session} />
           ) : activeMenu === "collateral" ? (
             <CollateralReleaseDashboard session={session} />
@@ -1028,7 +1468,11 @@ function BorrowerDashboard({ session, onLogout }) {
 
                         <button
                           type="button"
-                          onClick={() => handleCheckEligibility(loan.loanId)}
+                          onClick={() => {
+                            setCoolingOffLoanId(String(loan.loanId));
+                            changeMenu("cooling-off");
+                            handleCheckEligibility(loan.loanId);
+                          }}
                           disabled={Boolean(eligibilityLoading[String(loan.loanId)])}
                           className="mt-3 w-full rounded-xl border border-green-700 px-4 py-3 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -1036,6 +1480,12 @@ function BorrowerDashboard({ session, onLogout }) {
                             ? "Checking eligibility..."
                             : "Check Cooling-Off Eligibility"}
                         </button>
+
+                        {loan.loanStatus === "ACTIVE" && <button type="button"
+                          onClick={() => { setPreClosureLoanId(loan.loanId); setActiveMenu("preclosure"); }}
+                          className="mt-3 w-full rounded-xl border border-green-700 px-4 py-3 text-sm font-semibold text-green-800 hover:bg-green-50">
+                          Request Pre-closure / Foreclosure
+                        </button>}
 
                         {eligibilityErrors[String(loan.loanId)] && (
                           <p
@@ -1204,295 +1654,7 @@ function BorrowerDashboard({ session, onLogout }) {
         </div>
       )}
 
-      {selectedRequestId != null && (
-        <div
-          className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setSelectedRequestId(null);
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="exit-request-details-title"
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl sm:p-8"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="dashboard-eyebrow">Cooling-Off Exit</p>
-                <h2 id="exit-request-details-title" className="mt-2 text-2xl font-semibold">
-                  Exit Request Details
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRequestId(null)}
-                aria-label="Close request details"
-                className="rounded-full px-3 py-2 text-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-              >
-                ×
-              </button>
-            </div>
-
-            {requestListError && (
-              <p role="alert" className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                {requestListError}
-              </p>
-            )}
-
-            {selectedRequestDetails && (() => {
-              const loanRequests = coolingOffRequests
-                .filter((request) => String(request.loanId) === String(selectedRequestDetails.loanId))
-                .sort((a, b) => {
-                  const dateA = Date.parse(a.requestDate || a.createdAt || "") || 0;
-                  const dateB = Date.parse(b.requestDate || b.createdAt || "") || 0;
-                  if (dateA !== dateB) return dateB - dateA;
-                  return Number(b.exitRequestId) - Number(a.exitRequestId);
-                });
-              const statusMessage = requestStatusMessages[selectedRequestDetails.status];
-              const quoteStatus = settlementQuote?.quoteStatus;
-              const quoteIsAcceptedOrPaid = ["ACCEPTED", "PAID"].includes(quoteStatus);
-              const quoteIsExpired = !quoteIsAcceptedOrPaid && (
-                quoteStatus === "EXPIRED" || (quoteStatus === "AVAILABLE" && settlementQuote?.expired === true)
-              );
-              const canGenerateFirstQuote = ["PENDING", "UNDER_REVIEW", "APPROVED"].includes(selectedRequestDetails.status);
-              const canGenerateQuote = settlementQuoteLoaded && !settlementQuoteError && !quoteIsAcceptedOrPaid && (
-                (!settlementQuote && canGenerateFirstQuote) ||
-                (settlementQuote && quoteIsExpired && selectedRequestDetails.status === "APPROVED")
-              );
-              const canAcceptQuote = selectedRequestDetails.status === "APPROVED" &&
-                settlementQuote?.quoteStatus === "AVAILABLE" &&
-                settlementQuote?.expired === false &&
-                settlementQuote?.quoteId != null;
-
-              return (
-                <>
-                  {loanRequests.length > 1 && (
-                    <div className="mt-6">
-                      <p className="mb-2 text-sm font-medium text-gray-700">Other requests for this loan</p>
-                      <div className="flex flex-wrap gap-2">
-                        {loanRequests.map((request) => (
-                          <button
-                            key={request.exitRequestId}
-                            type="button"
-                            onClick={() => setSelectedRequestId(request.exitRequestId)}
-                            className={`rounded-lg border px-3 py-2 text-sm ${
-                              String(request.exitRequestId) === String(selectedRequestId)
-                                ? "border-green-700 bg-green-50 text-green-900"
-                                : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                            }`}
-                          >
-                            #{request.exitRequestId} · {requestStatusLabels[request.status] || request.status || "N/A"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gray-50 p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-700">Request Status</span>
-                      <RequestStatusBadge status={selectedRequestDetails.status} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRefreshRequest(selectedRequestId)}
-                      disabled={refreshingRequestId === String(selectedRequestId)}
-                      className="rounded-lg border border-green-700 bg-white px-4 py-2 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:opacity-60"
-                    >
-                      {refreshingRequestId === String(selectedRequestId) ? "Refreshing..." : "Refresh Status"}
-                    </button>
-                  </div>
-
-                  {requestDetailsLoading && (
-                    <p className="mt-4 text-sm text-gray-500">Refreshing request details...</p>
-                  )}
-                  {(requestDetailsError || requestRefreshErrors[String(selectedRequestId)]) && (
-                    <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                      {requestDetailsError || requestRefreshErrors[String(selectedRequestId)]}
-                    </p>
-                  )}
-
-                  {statusMessage && (
-                    <p className="mt-4 rounded-lg bg-green-50 p-4 text-sm text-green-900">
-                      {statusMessage}
-                    </p>
-                  )}
-
-                  <RequestInformation
-                    key={selectedRequestDetails.exitRequestId}
-                    token={session.token}
-                    requestId={selectedRequestDetails.exitRequestId}
-                    status={selectedRequestDetails.status}
-                    onSubmitted={(updated) => {
-                      setSelectedRequestDetails(updated);
-                      setCoolingOffRequests((current) => current.map((request) =>
-                        String(request.exitRequestId) === String(updated.exitRequestId) ? updated : request,
-                      ));
-                      setRequestRefreshCount((count) => count + 1);
-                    }}
-                  />
-
-                  <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <DetailField label="Exit Request ID" value={selectedRequestDetails.exitRequestId} />
-                    <DetailField label="Loan ID" value={selectedRequestDetails.loanId} />
-                    <DetailField label="Loan Reference" value={selectedRequestDetails.loanReference} />
-                    <DetailField label="Loan Status" value={loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.loanStatus} />
-                    <DetailField label="Outstanding Amount" value={formatQuoteCurrency(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.outstandingAmount)} />
-                    <DetailField label="Closure Date" value={formatDate(loans.find((loan) => String(loan.loanId) === String(selectedRequestDetails.loanId))?.closureDate)} />
-                    <DetailField label="Reason for Exit" value={selectedRequestDetails.reason} />
-                    <DetailField label="Request Date" value={formatDate(selectedRequestDetails.requestDate || selectedRequestDetails.createdAt)} />
-                    <DetailField label="Cooling-Off Expiry Date" value={formatDate(selectedRequestDetails.expiryDate)} />
-                    <DetailField label="Assigned Officer ID" value={selectedRequestDetails.officerId} />
-                    <DetailField label="Decision Date" value={formatDate(selectedRequestDetails.decidedAt)} />
-                    <DetailField label="Last Updated Date" value={formatDate(selectedRequestDetails.updatedAt)} />
-                  </div>
-
-                  <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="dashboard-eyebrow">Settlement Quote</p>
-                        <h3 className="mt-2 text-xl font-semibold">
-                          {settlementQuote ? `Settlement Quote — #${settlementQuote.quoteId ?? "N/A"}` : "Settlement Quote"}
-                        </h3>
-                      </div>
-                      {settlementQuote?.quoteStatus && (
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          quoteStatus === "ACCEPTED" || quoteStatus === "PAID"
-                            ? "bg-green-100 text-green-800"
-                            : quoteIsExpired
-                              ? "bg-red-100 text-red-800"
-                              : "bg-blue-100 text-blue-800"
-                        }`}>
-                          {quoteStatus}
-                        </span>
-                      )}
-                    </div>
-
-                    {settlementQuoteLoading && (
-                      <p className="mt-4 text-sm text-gray-500">Loading settlement quote...</p>
-                    )}
-                    {settlementQuoteError && (
-                      <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                        {settlementQuoteError}
-                      </p>
-                    )}
-                    {!settlementQuoteLoading && !settlementQuoteError && settlementQuoteLoaded && !settlementQuote && (
-                      <p className="mt-4 text-sm text-gray-600">No settlement quote generated yet.</p>
-                    )}
-
-                    {settlementQuote && (
-                      <>
-                        {quoteIsExpired && (
-                          <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                            <strong>Quote Expired.</strong> This quote is no longer valid. You can request a new quote if the approved exit request is still eligible.
-                          </p>
-                        )}
-                        {quoteStatus === "PAID" && (
-                          <p className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-900">
-                            This settlement quote has been paid.
-                          </p>
-                        )}
-                        {(quoteStatus === "ACCEPTED" || quoteStatus === "PAID") && (
-                          <section className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-950">
-                            <h4 className="font-semibold">Settlement Quote Accepted Successfully</h4>
-                            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-                              <div><dt className="font-medium">Quote ID</dt><dd>{settlementQuote.quoteId ?? "N/A"}</dd></div>
-                              <div><dt className="font-medium">Loan Reference</dt><dd>{selectedRequestDetails.loanReference || "N/A"}</dd></div>
-                              <div><dt className="font-medium">Quote Status</dt><dd>{settlementQuote.quoteStatus}</dd></div>
-                              <div><dt className="font-medium">Accepted At</dt><dd>{formatDateTime(settlementQuote.acceptedAt)}</dd></div>
-                            </dl>
-                            <div className="mt-4 rounded-lg bg-white/80 p-3">
-                              <p className="text-sm font-medium">Total Accepted Amount</p>
-                              <p className="mt-1 text-xl font-bold">{formatQuoteCurrency(settlementQuote.totalAmount)}</p>
-                            </div>
-                            <SettlementPayment
-                              key={settlementQuote.quoteId}
-                              token={session.token}
-                              quoteId={settlementQuote.quoteId}
-                              approved={selectedRequestDetails.status === "APPROVED"}
-                              username={session.username}
-                              onRefresh={() => handleRefreshRequest(selectedRequestDetails.exitRequestId)}
-                            />
-                          </section>
-                        )}
-                        <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          <DetailField label="Quote ID" value={settlementQuote.quoteId} />
-                          <DetailField label="Loan ID" value={settlementQuote.loanId} />
-                          <DetailField label="Exit Request ID" value={settlementQuote.exitRequestId} />
-                          <DetailField label="Quote Type" value={settlementQuote.quoteType} />
-                          <DetailField label="Principal Amount" value={formatQuoteCurrency(settlementQuote.principalAmount)} />
-                          <DetailField label="Interest Amount" value={formatQuoteCurrency(settlementQuote.interestAmount)} />
-                          <DetailField label="Processing Fee" value={formatQuoteCurrency(settlementQuote.chargesAmount)} />
-                          <DetailField label="Tax Amount" value={formatQuoteCurrency(settlementQuote.taxAmount)} />
-                          <DetailField label="Quote Generated Date" value={formatDateTime(settlementQuote.createdAt)} />
-                          <DetailField label="Valid Until" value={formatDateTime(settlementQuote.validUntil)} />
-                          <DetailField label="Accepted At" value={formatDateTime(settlementQuote.acceptedAt)} />
-                        </dl>
-                        <div className="mt-5 rounded-xl bg-lime-50 p-4">
-                          <p className="text-sm font-medium text-gray-700">Total Settlement Amount</p>
-                          <p className="mt-1 text-2xl font-bold text-[#102018]">
-                            {formatQuoteCurrency(settlementQuote.totalAmount)}
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                    {canGenerateQuote && (
-                      <button
-                        type="button"
-                        onClick={handleGenerateSettlementQuote}
-                        disabled={quoteGenerating}
-                        className="mt-5 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {quoteGenerating
-                          ? "Generating quote..."
-                          : quoteIsExpired
-                            ? "Generate New Quote"
-                            : "Generate Settlement Quote"}
-                      </button>
-                    )}
-
-                    {canAcceptQuote && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAcceptanceAcknowledged(false);
-                          setAcceptanceError("");
-                          setAcceptanceConfirmationOpen(true);
-                        }}
-                        className="ml-0 mt-4 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800 sm:ml-3"
-                      >
-                        Accept Settlement Quote
-                      </button>
-                    )}
-                    {acceptanceError && !acceptanceConfirmationOpen && (
-                      <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                        {acceptanceError}
-                      </p>
-                    )}
-                    {quoteRefreshError && (
-                      <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                        {quoteRefreshError}
-                      </p>
-                    )}
-                  </section>
-                </>
-              );
-            })()}
-
-            {requestDetailsLoading && !selectedRequestDetails && (
-              <p className="mt-6 text-gray-500">Loading request details...</p>
-            )}
-            {requestDetailsError && !selectedRequestDetails && (
-              <p role="alert" className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                {requestDetailsError}
-              </p>
-            )}
-          </section>
-        </div>
-      )}
+      {activeMenu !== "cooling-off" && coolingOffDetails}
 
       {acceptanceConfirmationOpen && settlementQuote && selectedRequestDetails && (
         <div

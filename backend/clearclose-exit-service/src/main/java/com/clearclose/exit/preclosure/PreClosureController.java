@@ -145,9 +145,10 @@ public class PreClosureController {
     // -----------------------------------------
 
     @GetMapping("/officer/requests")
-    public List<Long> pendingRequests(@AuthenticationPrincipal Jwt jwt) {
+    public List<Long> pendingRequests(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam(name = "includeHistory", defaultValue = "false") boolean includeHistory) {
 
-        return service.pendingRequests(service.officer(jwt));
+        return service.pendingRequests(service.officer(jwt), includeHistory);
     }
 
     @GetMapping("/officer/{requestId}")

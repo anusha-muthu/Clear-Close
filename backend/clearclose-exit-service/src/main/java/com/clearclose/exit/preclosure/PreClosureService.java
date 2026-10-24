@@ -92,17 +92,36 @@ public class PreClosureService {
 
     public PreClosureRecord get(long borrowerId, long requestId) {
         var rows = jdbc.query("""
-            SELECT c.* FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            SELECT c.*, l.BORROWER_ID, b.NAME AS BORROWER_NAME, l.LOAN_REFERENCE,
+                r.PRODUCT_TYPE, l.PRINCIPAL_AMOUNT, l.OUTSTANDING_AMOUNT, l.INTEREST_RATE,
+                l.LOAN_STATUS, l.MATURITY_DATE, l.CLOSURE_DATE
+            FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
+            JOIN BORROWERS b ON b.USER_ID = l.BORROWER_ID JOIN LOAN_PRODUCT_RULE r ON r.RULE_ID = l.RULE_ID
             WHERE c.CLOSURE_REQUEST_ID = ? AND c.CLOSURE_TYPE = 'FORECLOSURE' AND l.BORROWER_ID = ?
             """, (rs, n) -> {
                 Number officer = (Number) rs.getObject("OFFICER_ID");
                 Timestamp created = rs.getTimestamp("CREATED_AT");
+                Timestamp maturity = rs.getTimestamp("MATURITY_DATE");
+                Timestamp closure = rs.getTimestamp("CLOSURE_DATE");
                 return new PreClosureRecord(rs.getLong("CLOSURE_REQUEST_ID"), rs.getLong("LOAN_ID"),
                     rs.getString("CLOSURE_TYPE"), rs.getString("STATUS"), rs.getString("REASON"),
-                    officer == null ? null : officer.longValue(), created.toLocalDateTime(), quoteForRequest(requestId));
+                    officer == null ? null : officer.longValue(), created.toLocalDateTime(), quoteForRequest(requestId),
+                    new LoanSummary(rs.getLong("BORROWER_ID"), rs.getString("BORROWER_NAME"), rs.getString("LOAN_REFERENCE"),
+                        rs.getString("PRODUCT_TYPE"), rs.getBigDecimal("PRINCIPAL_AMOUNT"), rs.getBigDecimal("OUTSTANDING_AMOUNT"),
+                        rs.getBigDecimal("INTEREST_RATE"), rs.getString("LOAN_STATUS"),
+                        maturity == null ? null : maturity.toLocalDateTime(), closure == null ? null : closure.toLocalDateTime()),
+                    "REJECTED".equals(rs.getString("STATUS")) ? rejectionReason(requestId) : null);
             }, requestId, borrowerId);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pre-closure request not found");
         return rows.getFirst();
+    }
+
+    private String rejectionReason(long id) {
+        var reasons = jdbc.queryForList("""
+            SELECT DETAILS FROM AUDIT_LOG WHERE CLOSURE_REQUEST_ID = ? AND ACTION = 'PRE_CLOSURE_REJECTED'
+            ORDER BY LOG_ID DESC FETCH FIRST 1 ROW ONLY
+            """, String.class, id);
+        return reasons.isEmpty() ? null : reasons.getFirst();
     }
 
     public List<PreClosureRecord> myRequests(long borrowerId) {
@@ -244,14 +263,15 @@ public class PreClosureService {
         audit(officerId, id, true, "PRE_CLOSURE_REJECTED", reason);
     }
 
-    public List<Long> pendingRequests(long officerId) {
+    public List<Long> pendingRequests(long officerId, boolean includeHistory) {
         return jdbc.queryForList("""
             SELECT c.CLOSURE_REQUEST_ID FROM LOAN_CLOSURE_REQUEST c JOIN LOAN_ACCOUNT l ON l.LOAN_ID = c.LOAN_ID
             JOIN OFFICER o ON o.OFFICER_ID = ? AND o.ROLE = 'LOAN_CLOSURE_OFFICER' AND o.ACCOUNT_STATUS = 'ACTIVE'
-            WHERE c.CLOSURE_TYPE = 'FORECLOSURE' AND c.STATUS IN ('PENDING','UNDER_REVIEW','APPROVED','PAYMENT_PENDING')
+            WHERE c.CLOSURE_TYPE = 'FORECLOSURE'
+              AND (? = 1 OR c.STATUS IN ('PENDING','UNDER_REVIEW','APPROVED','PAYMENT_PENDING'))
               AND (c.OFFICER_ID IS NULL OR c.OFFICER_ID = o.OFFICER_ID)
               AND (o.USER_ID IS NULL OR o.USER_ID <> l.BORROWER_ID) ORDER BY c.CREATED_AT DESC
-            """, Long.class, officerId);
+            """, Long.class, officerId, includeHistory ? 1 : 0);
     }
 
     @Transactional
@@ -331,6 +351,12 @@ public class PreClosureService {
         String reason,
         Long officerId,
         LocalDateTime createdAt,
-        PreClosureQuote quote
+        PreClosureQuote quote,
+        LoanSummary loan,
+        String decisionRemarks
     ) {}
+
+    public record LoanSummary(Long borrowerId, String borrowerName, String loanReference, String productType,
+        BigDecimal principalAmount, BigDecimal outstandingAmount, BigDecimal interestRate, String loanStatus,
+        LocalDateTime maturityDate, LocalDateTime closureDate) {}
 }
