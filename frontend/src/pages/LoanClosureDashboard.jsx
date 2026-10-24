@@ -411,6 +411,10 @@ function LoanClosureDashboard({ session, onLogout }) {
               <span aria-hidden="true">←</span>
               Officer services
             </a>
+            <a href="#noc-dashboard" className="sidebar-link">
+              <span aria-hidden="true">▤</span>
+              NOC Certificates
+            </a>
           </nav>
 
           <div className="officer-sidebar-account">

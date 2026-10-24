@@ -15,6 +15,8 @@ import GrievanceDashboard from "./pages/GrievanceDashboard";
 import GrievanceOfficerDashboard from "./pages/GrievanceOfficerDashboard";
 import CollateralReleaseDashboard from "./pages/CollateralReleaseDashboard";
 
+import NocDashboard from "./pages/NocDashboard";
+
 import { OFFICER_PORTALS } from "./officerApi";
 
 const officerLoginRoutes = {
@@ -111,7 +113,42 @@ function App() {
       <Redirect to="#borrower-login" />
     );
   }
+     // NOC certificates: borrower access and authorized officer access.
+  if (route === "#noc-dashboard") {
+    if (!session?.token) {
+      return <Redirect to="#borrower-login" />;
+    }
 
+    const authorizedOfficer =
+      session.accountType === "OFFICER" &&
+      ["LOAN_CLOSURE_OFFICER", "COLLATERAL_OFFICER", "ADMIN"].includes(
+        session.role
+      );
+
+    if (!isBorrower && !authorizedOfficer) {
+      return (
+        <main className="borrower-login-page">
+          <section className="borrower-login-card">
+            <h1>Access denied</h1>
+            <p>Your account cannot access the NOC service.</p>
+
+            <a href="#officer-portals">Back to officer services</a>
+
+            <button type="button" onClick={handleLogout}>
+              Sign out
+            </button>
+          </section>
+        </main>
+      );
+    }
+
+    return (
+      <NocDashboard
+        session={session}
+        onLogout={handleLogout}
+      />
+    );
+  }
   // Officer service selection.
   if (
     route === "#officer-login" ||
@@ -247,6 +284,7 @@ function App() {
       <>
         <nav className="flex flex-wrap items-center gap-4 border-b p-4">
           <a href="#officer-portals">← Officer services</a>
+          <a href="#noc-dashboard">NOC Certificates</a>
 
           <span>{session.username}</span>
 
