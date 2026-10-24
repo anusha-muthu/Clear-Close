@@ -407,6 +407,10 @@ function LoanClosureDashboard({ session, onLogout }) {
               ◫ Assigned to Me
             </button>
 
+            <a href="#officer-portals" className="sidebar-link">
+              <span aria-hidden="true">←</span>
+              Officer services
+            </a>
           </nav>
 
           <div className="officer-sidebar-account">

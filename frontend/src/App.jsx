@@ -234,6 +234,15 @@ function App() {
       );
     }
 
+    if (portal === "grievance") {
+      return (
+        <GrievanceOfficerDashboard
+          session={session}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
     return (
       <>
         <nav className="flex flex-wrap items-center gap-4 border-b p-4">
@@ -246,11 +255,7 @@ function App() {
           </button>
         </nav>
 
-        {portal === "grievance" ? (
-          <GrievanceOfficerDashboard session={session} />
-        ) : (
-          <CollateralReleaseDashboard session={session} />
-        )}
+        <CollateralReleaseDashboard session={session} />
       </>
     );
   }

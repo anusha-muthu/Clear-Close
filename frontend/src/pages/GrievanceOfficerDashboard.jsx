@@ -32,7 +32,7 @@ function Badge({ status }) {
   return <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${color}`}>{label(status)}</span>;
 }
 
-export default function GrievanceOfficerDashboard({ session }) {
+export default function GrievanceOfficerDashboard({ session, onLogout }) {
   const [tickets, setTickets] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -206,7 +206,39 @@ export default function GrievanceOfficerDashboard({ session }) {
   ];
 
   return (
-    <main className="min-h-screen bg-[#fafbf8] px-6 py-10 text-[#102018] lg:px-16">
+    <div className="officer-shell">
+      <div className="officer-layout">
+        <aside className="officer-sidebar borrower-sidebar">
+          <a href="#home" className="dashboard-brand dashboard-brand-light">
+            <span className="dashboard-brand-mark" />
+            Clear<span>Close</span>
+          </a>
+
+          <p className="sidebar-heading officer-sidebar-label">Officer Portal</p>
+
+          <nav aria-label="Grievance officer navigation" className="sidebar-nav officer-sidebar-nav">
+            <a href="#grievance-officer-dashboard" className="sidebar-link active" aria-current="page">
+              <span aria-hidden="true">▦</span>
+              {isSenior ? "Review & Assignment" : "Assigned Grievances"}
+            </a>
+            <a href="#officer-portals" className="sidebar-link">
+              <span aria-hidden="true">←</span>
+              Officer services
+            </a>
+          </nav>
+
+          <div className="officer-sidebar-account">
+            <div className="officer-account-card">
+              <p className="font-semibold">{session?.username}</p>
+              <p>{label(session?.role)}</p>
+            </div>
+            <button type="button" onClick={onLogout} className="officer-logout-button">
+              Logout
+            </button>
+          </div>
+        </aside>
+
+    <main className="officer-main dashboard-main min-w-0">
       <header className="mx-auto mb-8 flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b pb-6">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-lime-700">Bank Employee Portal</p>
@@ -288,5 +320,7 @@ export default function GrievanceOfficerDashboard({ session }) {
         </aside>
       </div>
     </main>
+      </div>
+    </div>
   );
 }
