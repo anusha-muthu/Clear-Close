@@ -322,10 +322,30 @@ export default function PreClosure({ session, officer = false, loans = [], initi
         {quote && <>
           <Status value={quote.quoteStatus} />
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <Field title="Quote ID">{quote.quoteId}</Field><Field title="Principal">{money(quote.principalAmount)}</Field>
-            <Field title="Interest">{money(quote.interestAmount)}</Field><Field title="Foreclosure Charges">{money(quote.chargesAmount)}</Field>
-            <Field title="Tax">{money(quote.taxAmount)}</Field><Field title="Valid Until">{date(quote.validUntil)}</Field>
+            <Field title="Quote ID">{quote.quoteId}</Field><Field title="Outstanding Principal at Quotation">{money(quote.principalAmount)}</Field>
+            <Field title={quote.calculation ? `Accrued Interest (${quote.calculation.interestDays} days)` : "Interest"}>{money(quote.interestAmount)}</Field>
+            <Field title="Permitted Foreclosure Charges">{money(quote.chargesAmount)}</Field>
+            <Field title="Tax on Foreclosure Charges">{money(quote.taxAmount)}</Field><Field title="Valid Until">{date(quote.validUntil)}</Field>
           </dl>
+          {quote.calculation && <div className="space-y-4 rounded-xl border border-gray-200 p-5">
+            <h5 className="font-semibold">How this settlement was calculated</h5>
+            <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <Field title="Interest Paid Through">{date(quote.calculation.interestPaidThrough)}</Field>
+              <Field title="Interest Calculated To">{date(quote.calculation.settlementDate)}</Field>
+              <Field title="Annual Interest Rate">{quote.calculation.annualInterestRate}%</Field>
+              <Field title="Interest Basis">{quote.calculation.dayCountBasis}</Field>
+              <Field title="Foreclosure Rule">{quote.calculation.chargeType === "PERCENTAGE"
+                ? `${quote.calculation.chargeValue}% of outstanding principal`
+                : quote.calculation.chargeType === "FIXED" ? money(quote.calculation.chargeValue) : "No foreclosure fee"}</Field>
+              <Field title="Tax Rate on Charges">{quote.calculation.taxRate}%</Field>
+            </dl>
+            <p className="text-sm text-gray-600">{quote.calculation.chargePolicyReason}</p>
+            <p className="text-sm text-gray-600">Interest = outstanding principal × annual rate × unpaid interest days ÷ 36,500.
+              Future months of interest are excluded. Tax applies to foreclosure charges only.</p>
+          </div>}
+          {details.status === "COMPLETED" && <p className="text-sm text-gray-600">
+            This paid quotation records the amounts settled. The current loan balance is zero after payment.
+          </p>}
           <div className="rounded-xl bg-green-50 p-5"><p>Total Settlement Amount</p><p className="mt-2 text-2xl font-semibold">{money(quote.totalAmount)}</p></div>
           {expired && !["PAID"].includes(quote.quoteStatus) && <p className="text-amber-900">The payment deadline has passed. No new checkout can be opened.
             {quote.quoteStatus === "AVAILABLE" ? " Generate a fresh quotation before accepting." : " An accepted quotation cannot be replaced. Contact the bank for assistance; refresh payment status if you already paid."}</p>}

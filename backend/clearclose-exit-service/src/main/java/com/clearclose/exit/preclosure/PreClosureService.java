@@ -1,10 +1,10 @@
 package com.clearclose.exit.preclosure;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
@@ -141,7 +141,12 @@ public class PreClosureService {
             """, (rs, n) -> new PreClosureQuote(rs.getLong("QUOTE_ID"), rs.getLong("CLOSURE_REQUEST_ID"),
                 rs.getLong("LOAN_ID"), rs.getBigDecimal("PRINCIPAL_AMOUNT"), rs.getBigDecimal("INTEREST_AMOUNT"),
                 rs.getBigDecimal("CHARGES_AMOUNT"), rs.getBigDecimal("TAX_AMOUNT"), rs.getBigDecimal("TOTAL_AMOUNT"),
-                rs.getString("QUOTE_STATUS"), rs.getTimestamp("VALID_UNTIL").toLocalDateTime(), rs.getInt("EXPIRED") == 1), id);
+                rs.getString("QUOTE_STATUS"), rs.getTimestamp("VALID_UNTIL").toLocalDateTime(), rs.getInt("EXPIRED") == 1,
+                rs.getObject("CALCULATION_VERSION") == null ? null : new CalculationBasis(
+                    rs.getDate("INTEREST_PAID_THROUGH").toLocalDate(), rs.getDate("INTEREST_AS_OF_DATE").toLocalDate(),
+                    rs.getLong("ACCRUED_INTEREST_DAYS"), rs.getBigDecimal("QUOTED_ANNUAL_RATE"), "Actual/365",
+                    rs.getString("APPLIED_CHARGE_TYPE"), rs.getBigDecimal("APPLIED_CHARGE_VALUE"),
+                    rs.getBigDecimal("APPLIED_TAX_RATE"), rs.getString("CHARGE_POLICY_REASON"))), id);
         return quotes.isEmpty() ? null : quotes.getFirst();
     }
 
@@ -155,34 +160,43 @@ public class PreClosureService {
         if (previous != null && ("ACCEPTED".equals(previous.quoteStatus()) || "PAID".equals(previous.quoteStatus())
                 || ("AVAILABLE".equals(previous.quoteStatus()) && !previous.expired()))) return previous;
         if (!"APPROVED".equals(record.status())) throw conflict("Accepted quotes cannot be replaced");
-        var loans = jdbc.queryForList("""
-            SELECT l.OUTSTANDING_AMOUNT, r.CLOSURE_CHARGE_TYPE, r.CLOSURE_CHARGE_VALUE
+        var loans = jdbc.query("""
+            SELECT l.OUTSTANDING_AMOUNT, l.INTEREST_RATE, l.DISBURSEMENT_DATE,
+                   l.INTEREST_PAID_THROUGH, l.INTEREST_RATE_TYPE, l.LOAN_PURPOSE,
+                   l.PREPAYMENT_CHARGE_ALLOWED, TRUNC(SYSDATE) AS SETTLEMENT_DATE,
+                   r.CLOSURE_CHARGE_TYPE, r.CLOSURE_CHARGE_VALUE, r.CLOSURE_TAX_RATE
             FROM LOAN_ACCOUNT l JOIN LOAN_PRODUCT_RULE r ON r.RULE_ID = l.RULE_ID
             WHERE l.LOAN_ID = ? AND l.BORROWER_ID = ? AND l.LOAN_STATUS = 'ACTIVE'
               AND r.EARLY_CLOSURE_ALLOWED = 'Y' AND r.RULE_STATUS = 'ACTIVE'
               AND l.DISBURSEMENT_DATE <= SYSDATE AND l.MATURITY_DATE > SYSDATE
-            """, record.loanId(), borrowerId);
+            FOR UPDATE OF l.OUTSTANDING_AMOUNT, r.CLOSURE_CHARGE_VALUE
+            """, (rs, n) -> new PreClosureSettlementCalculator.Terms(
+                rs.getBigDecimal("OUTSTANDING_AMOUNT"), rs.getBigDecimal("INTEREST_RATE"),
+                rs.getDate("DISBURSEMENT_DATE").toLocalDate(),
+                rs.getDate("INTEREST_PAID_THROUGH") == null ? null : rs.getDate("INTEREST_PAID_THROUGH").toLocalDate(),
+                rs.getDate("SETTLEMENT_DATE").toLocalDate(), rs.getString("INTEREST_RATE_TYPE"),
+                rs.getString("LOAN_PURPOSE"), rs.getString("PREPAYMENT_CHARGE_ALLOWED"),
+                rs.getString("CLOSURE_CHARGE_TYPE"), rs.getBigDecimal("CLOSURE_CHARGE_VALUE"),
+                rs.getBigDecimal("CLOSURE_TAX_RATE")), record.loanId(), borrowerId);
         if (loans.size() != 1) throw conflict("Loan is no longer eligible for quotation");
-        var loan = loans.getFirst();
-        BigDecimal principal = ((BigDecimal) loan.get("OUTSTANDING_AMOUNT")).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal value = (BigDecimal) loan.get("CLOSURE_CHARGE_VALUE");
-        if (principal.signum() <= 0 || value == null || value.signum() < 0) throw conflict("Invalid loan charge rule");
-        BigDecimal charges = switch (String.valueOf(loan.get("CLOSURE_CHARGE_TYPE"))) {
-            case "NONE" -> BigDecimal.ZERO;
-            case "FIXED" -> value;
-            case "PERCENTAGE" -> principal.multiply(value).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            default -> throw conflict("Unsupported foreclosure charge rule");
-        };
-        charges = charges.setScale(2, RoundingMode.HALF_UP);
-        // Existing demo assumption only: no accrued-interest ledger is supplied.
-        BigDecimal interest = new BigDecimal("0.00");
-        BigDecimal tax = charges.multiply(new BigDecimal("0.18")).setScale(2, RoundingMode.HALF_UP);
+        var terms = loans.getFirst();
+        PreClosureSettlementCalculator.Calculation calculation;
+        try {
+            calculation = PreClosureSettlementCalculator.calculate(terms);
+        } catch (IllegalArgumentException ex) {
+            throw conflict(ex.getMessage());
+        }
         insert("""
             INSERT INTO SETTLEMENT_QUOTE (LOAN_ID, CLOSURE_REQUEST_ID, QUOTE_TYPE, PRINCIPAL_AMOUNT,
-                INTEREST_AMOUNT, CHARGES_AMOUNT, TAX_AMOUNT, TOTAL_AMOUNT, VALID_UNTIL, QUOTE_STATUS)
-            VALUES (?, ?, 'CLOSURE', ?, ?, ?, ?, ?, SYSDATE + 15/1440, 'AVAILABLE')
-            """, "QUOTE_ID", record.loanId(), id, principal, interest, charges, tax,
-            principal.add(interest).add(charges).add(tax));
+                INTEREST_AMOUNT, CHARGES_AMOUNT, TAX_AMOUNT, TOTAL_AMOUNT, VALID_UNTIL, QUOTE_STATUS,
+                CALCULATION_VERSION, INTEREST_PAID_THROUGH, INTEREST_AS_OF_DATE, ACCRUED_INTEREST_DAYS,
+                QUOTED_ANNUAL_RATE, APPLIED_CHARGE_TYPE, APPLIED_CHARGE_VALUE, APPLIED_TAX_RATE, CHARGE_POLICY_REASON)
+            VALUES (?, ?, 'CLOSURE', ?, ?, ?, ?, ?, LEAST(SYSDATE + 15/1440, TRUNC(SYSDATE) + 1), 'AVAILABLE',
+                1, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, "QUOTE_ID", record.loanId(), id, calculation.principal(), calculation.interest(), calculation.charges(),
+            calculation.tax(), calculation.total(), java.sql.Date.valueOf(terms.interestPaidThrough()),
+            java.sql.Date.valueOf(terms.settlementDate()), calculation.interestDays(), terms.annualInterestRate(),
+            calculation.appliedChargeType(), calculation.appliedChargeValue(), calculation.appliedTaxRate(), calculation.chargePolicyReason());
         audit(borrowerId, id, false, "PRE_CLOSURE_QUOTE_CREATED", null);
         return quoteForRequest(id);
     }
@@ -340,8 +354,13 @@ public class PreClosureService {
         BigDecimal totalAmount,
         String quoteStatus,
         LocalDateTime validUntil,
-        boolean expired
+        boolean expired,
+        CalculationBasis calculation
     ) {}
+
+    public record CalculationBasis(LocalDate interestPaidThrough, LocalDate settlementDate, long interestDays,
+        BigDecimal annualInterestRate, String dayCountBasis, String chargeType, BigDecimal chargeValue,
+        BigDecimal taxRate, String chargePolicyReason) {}
 
     public record PreClosureRecord(
         Long closureRequestId,
