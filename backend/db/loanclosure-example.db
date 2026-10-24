@@ -1,0 +1,116 @@
+-- CLEAR CLOSE: REALISTIC PRE-CLOSURE EXAMPLE (Oracle SQL, not a separate database)
+-- 350000 original principal, 36-month tenure, twelve monthly EMIs completed.
+-- One year means one year COMPLETED, with two years of the original tenure left.
+-- 12% fixed annual rate; close ten days after the twelfth EMI.
+-- Run manually with F5 in SQL Developer, in the Clear Close schema.
+-- Prerequisites: run consolidated.db and the full Java seeder first.
+-- Tara must exist as tara_demo26. No application/payment code is run here.
+-- Creates a NEW ACTIVE loan and collateral; finish the workflow in the frontend.
+-- Run once. Change the loan reference in this file to create another example.
+
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+SET AUTOCOMMIT OFF
+
+-- Separate demo product rule; shared product rules are not modified.
+-- The 2% fee and 18% tax are example terms, not universal required rates.
+INSERT INTO LOAN_PRODUCT_RULE (
+    PRODUCT_TYPE, COOLING_OFF_DAYS, EARLY_CLOSURE_ALLOWED,
+    CLOSURE_CHARGE_TYPE, CLOSURE_CHARGE_VALUE, CLOSURE_TAX_RATE,
+    EFFECTIVE_FROM, RULE_STATUS
+)
+SELECT 'DEMO_PRECLOSURE_350K', 5, 'Y', 'PERCENTAGE', 2, 18,
+       DATE '2026-01-01', 'ACTIVE'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM LOAN_PRODUCT_RULE
+    WHERE PRODUCT_TYPE = 'DEMO_PRECLOSURE_350K'
+      AND EFFECTIVE_FROM = DATE '2026-01-01'
+);
+
+-- Illustrative reducing-balance EMI schedule, monthly rate 12% / 12 = 1%:
+-- EMI = P*r*(1+r)^36 / ((1+r)^36 - 1), rounded to paise.
+-- Balance after 12 EMIs = P*(1+r)^12 - EMI*((1+r)^12 - 1)/r.
+-- The remaining balance is calculated below, not guessed from total EMIs paid.
+-- Final balance is rounded to paise. Per-cycle ledger rounding may differ by paise.
+-- Interest is settled through the twelfth EMI date (ten days ago), with no later
+-- principal changes. No actual EMI/payment rows are fabricated by this script.
+-- FIXED rate and permission Y assume the illustrative fee is permitted/disclosed.
+INSERT INTO LOAN_ACCOUNT (
+    BORROWER_ID, RULE_ID, LOAN_REFERENCE,
+    PRINCIPAL_AMOUNT, OUTSTANDING_AMOUNT, INTEREST_RATE, TENURE_MONTHS,
+    DISBURSEMENT_DATE, MATURITY_DATE, LOAN_STATUS, CLOSURE_DATE,
+    INTEREST_PAID_THROUGH, INTEREST_RATE_TYPE, LOAN_PURPOSE,
+    PREPAYMENT_CHARGE_ALLOWED
+)
+SELECT
+    (SELECT USER_ID FROM BORROWERS
+     WHERE USERNAME = 'tara_demo26' AND ACCOUNT_STATUS = 'ACTIVE'),
+    (SELECT RULE_ID FROM LOAN_PRODUCT_RULE
+     WHERE PRODUCT_TYPE = 'DEMO_PRECLOSURE_350K'
+       AND EFFECTIVE_FROM = DATE '2026-01-01' AND RULE_STATUS = 'ACTIVE'),
+    'CC-LOANCLOSURE-350K-001',
+    350000,
+    ROUND(350000 * POWER(1.01, 12)
+        - ROUND(350000 * 0.01 * POWER(1.01, 36) / (POWER(1.01, 36) - 1), 2)
+        * (POWER(1.01, 12) - 1) / 0.01, 2),
+    12, 36,
+    ADD_MONTHS(TRUNC(SYSDATE) - 10, -12),
+    ADD_MONTHS(TRUNC(SYSDATE) - 10, 24),
+    'ACTIVE', NULL,
+    TRUNC(SYSDATE) - 10, 'FIXED', 'NON_BUSINESS', 'Y'
+FROM DUAL;
+
+INSERT INTO COLLATERAL (
+    LOAN_ACCOUNT_ID, COLLATERAL_TYPE, DESCRIPTION,
+    FILE_NAME, STORAGE_PATH, CUSTODIAN, RELEASE_STATUS
+)
+VALUES (
+    (SELECT LOAN_ID FROM LOAN_ACCOUNT
+     WHERE LOAN_REFERENCE = 'CC-LOANCLOSURE-350K-001'),
+    'VEHICLE', 'Synthetic used-vehicle loan registration documents',
+    'loanclosure_example.pdf', '/demo/loanclosure_example.pdf',
+    'Mumbai Branch', 'NOT_ELIGIBLE'
+);
+
+COMMIT;
+
+SELECT b.USERNAME, l.LOAN_ID, l.LOAN_REFERENCE, l.LOAN_STATUS,
+       l.PRINCIPAL_AMOUNT, l.OUTSTANDING_AMOUNT, l.INTEREST_RATE,
+       l.TENURE_MONTHS, l.DISBURSEMENT_DATE, l.MATURITY_DATE,
+       l.INTEREST_PAID_THROUGH, c.COLLATERAL_ID, c.RELEASE_STATUS
+FROM BORROWERS b
+JOIN LOAN_ACCOUNT l ON l.BORROWER_ID = b.USER_ID
+JOIN COLLATERAL c ON c.LOAN_ACCOUNT_ID = l.LOAN_ID
+WHERE l.LOAN_REFERENCE = 'CC-LOANCLOSURE-350K-001';
+
+-- Preview principal already repaid and the same-day settlement components.
+-- This SELECT is an explanation only; generate the actual saved quote via UI.
+SELECT PRINCIPAL_AMOUNT AS ORIGINAL_PRINCIPAL,
+       ROUND(350000 * 0.01 * POWER(1.01, 36) / (POWER(1.01, 36) - 1), 2) AS MONTHLY_EMI,
+       PRINCIPAL_AMOUNT - OUTSTANDING_AMOUNT AS PRINCIPAL_REPAID,
+       OUTSTANDING_AMOUNT AS REMAINING_PRINCIPAL,
+       ROUND(OUTSTANDING_AMOUNT * INTEREST_RATE
+           * (TRUNC(SYSDATE) - TRUNC(INTEREST_PAID_THROUGH)) / 36500, 2) AS ACCRUED_INTEREST,
+       ROUND(OUTSTANDING_AMOUNT * 0.02, 2) AS FORECLOSURE_FEE,
+       ROUND(ROUND(OUTSTANDING_AMOUNT * 0.02, 2) * 0.18, 2) AS TAX_ON_FEE,
+       OUTSTANDING_AMOUNT
+           + ROUND(OUTSTANDING_AMOUNT * INTEREST_RATE
+               * (TRUNC(SYSDATE) - TRUNC(INTEREST_PAID_THROUGH)) / 36500, 2)
+           + ROUND(OUTSTANDING_AMOUNT * 0.02, 2)
+           + ROUND(ROUND(OUTSTANDING_AMOUNT * 0.02, 2) * 0.18, 2) AS EXAMPLE_TOTAL
+FROM LOAN_ACCOUNT WHERE LOAN_REFERENCE = 'CC-LOANCLOSURE-350K-001';
+
+-- FRONTEND TEST (same database day as running this script):
+-- 1. Sign in as Tara: tara_demo26 / Tara@12345 (full Java seeder credentials).
+-- 2. Select the loan ID above and request PRE-CLOSURE, not cooling-off exit.
+-- 3. Assign/approve as closure officer, then create a quote as Tara.
+-- Expected: remaining principal + 10 days' Actual/365 interest + permitted 2% fee
+--         + 18% tax on that fee. See the preview SELECT for amounts.
+-- The outstanding principal will be about 2.47 lakh after twelve EMIs.
+-- Future interest for the remaining 24 months is not included in settlement.
+-- 4. Accept and pay in Razorpay test mode. Refresh until the loan is CLOSED.
+-- 5. Wait for automatic NOC generation, then download the NOC.
+-- 6. Request collateral release, then approve/complete as collateral officer.
+-- This script does not fabricate settlement quotes, payments, NOCs, or files.
+
+WHENEVER SQLERROR CONTINUE NONE
