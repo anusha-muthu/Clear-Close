@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { getBorrowerInformationHistory, submitAdditionalInformation } from "../api";
+import { getBorrowerInformationHistory, submitAdditionalInformation, preClosureRequest } from "../api";
 import { getOfficerInformationHistory } from "../officerApi";
 
-export default function RequestInformation({ token, requestId, status, officer = false, onSubmitted, onRefresh }) {
+export default function RequestInformation({ token, requestId, status, officer = false, workflow = "cooling-off", onSubmitted, onRefresh }) {
   const [messages, setMessages] = useState([]);
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,9 @@ export default function RequestInformation({ token, requestId, status, officer =
       setHistoryError("");
       try {
         const getHistory = officer ? getOfficerInformationHistory : getBorrowerInformationHistory;
-        const data = await getHistory(token, requestId);
+        const data = workflow === "preclosure"
+          ? await preClosureRequest(token, `${officer ? "/officer" : ""}/${encodeURIComponent(requestId)}/information-history`)
+          : await getHistory(token, requestId);
         if (!Array.isArray(data)) throw new Error("Invalid request information received.");
         if (active) setMessages(data);
       } catch (error) {
@@ -37,7 +39,7 @@ export default function RequestInformation({ token, requestId, status, officer =
     }
     load();
     return () => { active = false; };
-  }, [token, requestId, officer, status, refresh]);
+  }, [token, requestId, officer, workflow, status, refresh]);
 
   async function submit(event) {
     event.preventDefault();
@@ -52,7 +54,11 @@ export default function RequestInformation({ token, requestId, status, officer =
     setSubmitError("");
     setNotice("");
     try {
-      const updated = await submitAdditionalInformation(token, requestId, text);
+      const updated = workflow === "preclosure"
+        ? await preClosureRequest(token, `/${encodeURIComponent(requestId)}/additional-information`, {
+          method: "POST", body: JSON.stringify({ response: text }),
+        })
+        : await submitAdditionalInformation(token, requestId, text);
       if (!mounted.current) return;
       onSubmitted?.(updated);
       setResponse("");
@@ -73,7 +79,7 @@ export default function RequestInformation({ token, requestId, status, officer =
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold">Additional Information</h3>
-          <p className="mt-1 text-sm text-gray-500">Exit Request #{requestId}</p>
+          <p className="mt-1 text-sm text-gray-500">{workflow === "preclosure" ? "Pre-closure Request" : "Exit Request"} #{requestId}</p>
         </div>
         <button type="button" onClick={() => {
           // The officer must reload status too: a reply changes MORE_INFO_REQUIRED to UNDER_REVIEW.

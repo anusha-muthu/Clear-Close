@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { preClosureRequest } from "../api";
 import SettlementPayment from "./SettlementPayment";
+import RequestInformation from "./RequestInformation";
 
 const money = (amount) => amount == null ? "N/A" : new Intl.NumberFormat("en-IN", {
   style: "currency", currency: "INR", maximumFractionDigits: 2,
@@ -11,6 +12,7 @@ const button = "rounded-xl border border-green-700 bg-white px-4 py-3 text-sm fo
 const messages = {
   PENDING: "Your request is awaiting assignment to a loan closure officer.",
   UNDER_REVIEW: "A loan closure officer is reviewing this request.",
+  MORE_INFO_REQUIRED: "The officer needs additional information. Read the request below and submit your response.",
   APPROVED: "Approved. You can now generate and accept a settlement quotation.",
   PAYMENT_PENDING: "Quotation accepted. Complete payment before its deadline. After payment verification, closure will be processed automatically.",
   COMPLETED: "Pre-closure completed. The loan has been closed with zero outstanding.",
@@ -38,6 +40,7 @@ export default function PreClosure({ session, officer = false, loans = [], initi
   const [loanId, setLoanId] = useState(initialLoanId == null ? "" : String(initialLoanId));
   const [reason, setReason] = useState("");
   const [rejection, setRejection] = useState("");
+  const [informationRequest, setInformationRequest] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -112,7 +115,7 @@ export default function PreClosure({ session, officer = false, loans = [], initi
     if (submitting.current) return;
     setSelectedId(record.closureRequestId);
     setDetails(record);
-    setActionError(""); setNotice(""); setAcknowledged(false); setRejection("");
+    setActionError(""); setNotice(""); setAcknowledged(false); setRejection(""); setInformationRequest("");
     setDecisionIntent(null);
   }
 
@@ -130,6 +133,7 @@ export default function PreClosure({ session, officer = false, loans = [], initi
       }
       setAcknowledged(false);
       setDecisionIntent(null);
+      if (path.endsWith("/request-information")) setInformationRequest("");
       setNotice(success);
       setRevision((value) => value + 1);
     } catch (failure) {
@@ -155,6 +159,7 @@ export default function PreClosure({ session, officer = false, loans = [], initi
   const activeLoans = loans.filter((loan) => loan.loanStatus === "ACTIVE");
   const reasonBytes = new TextEncoder().encode(reason.trim()).length;
   const rejectionBytes = new TextEncoder().encode(rejection.trim()).length;
+  const informationBytes = new TextEncoder().encode(informationRequest.trim()).length;
   const quotePath = `/${encodeURIComponent(selectedId)}`;
   const visibleRequests = requests.filter((record) => {
     const mine = Number(record.officerId) === Number(session.userId);
@@ -167,7 +172,7 @@ export default function PreClosure({ session, officer = false, loans = [], initi
   });
   const summary = [
     ["Available Requests", requests.length],
-    ["Awaiting Review", requests.filter((record) => ["PENDING", "UNDER_REVIEW"].includes(record.status)).length],
+    ["Awaiting Review", requests.filter((record) => ["PENDING", "UNDER_REVIEW", "MORE_INFO_REQUIRED"].includes(record.status)).length],
     ["Awaiting Payment / Closure", requests.filter((record) => ["APPROVED", "PAYMENT_PENDING"].includes(record.status)).length],
     ["Completed", requests.filter((record) => record.status === "COMPLETED").length],
   ];
@@ -229,7 +234,7 @@ export default function PreClosure({ session, officer = false, loans = [], initi
         <select aria-label="Filter pre-closure status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}
           className="rounded-xl border border-gray-300 bg-white p-3">
           <option value="ALL">All Statuses</option>
-          {["PENDING", "UNDER_REVIEW", "APPROVED", "PAYMENT_PENDING", "COMPLETED", "REJECTED", "CANCELLED"].map((status) => <option key={status} value={status}>{label(status)}</option>)}
+          {["PENDING", "UNDER_REVIEW", "MORE_INFO_REQUIRED", "APPROVED", "PAYMENT_PENDING", "COMPLETED", "REJECTED", "CANCELLED"].map((status) => <option key={status} value={status}>{label(status)}</option>)}
         </select>
         <select aria-label="Filter assignment" value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}
           className="rounded-xl border border-gray-300 bg-white p-3">
@@ -275,6 +280,15 @@ export default function PreClosure({ session, officer = false, loans = [], initi
         <h4 className="font-semibold">Officer Rejection Reason</h4><p className="mt-2 whitespace-pre-wrap">{details.decisionRemarks}</p>
       </div>}
 
+      <RequestInformation key={`${officer}:${selectedId}:${revision}`} workflow="preclosure"
+        token={session.token} requestId={details.closureRequestId} status={details.status} officer={officer}
+        onRefresh={() => setRevision((value) => value + 1)}
+        onSubmitted={(updated) => {
+          setDetails(updated);
+          setNotice("Your additional information was submitted. The same request is back under review.");
+          setRevision((value) => value + 1);
+        }} />
+
       {officer && <div className="space-y-4 border-t border-gray-200 pt-5">
         <h4 className="text-xl font-semibold">Officer Review</h4>
         {assigned && <p className="text-sm text-green-800">This request is assigned to you.</p>}
@@ -282,6 +296,17 @@ export default function PreClosure({ session, officer = false, loans = [], initi
           <button type="button" className={button} disabled={busy || detailsLoading}
             onClick={() => action(`/officer/${selectedId}/assign`, null, "Request assigned to you for review.")}>Assign to Me</button>}
         {canReview && <>
+          <label className="block text-sm font-semibold">Additional information needed
+            <textarea rows={3} maxLength={1000} value={informationRequest} disabled={busy}
+              onChange={(event) => setInformationRequest(event.target.value)}
+              placeholder="Explain what clarification you need from the borrower"
+              className="mt-2 w-full rounded-xl border border-gray-300 p-3" />
+          </label>
+          {informationBytes > 1000 && <p role="alert" className="text-sm text-red-700">Shorten the information request to fit the message limit.</p>}
+          <button type="button" className={button}
+            disabled={busy || detailsLoading || !informationRequest.trim() || informationBytes > 1000}
+            onClick={() => action(`/officer/${selectedId}/request-information`, { message: informationRequest.trim() },
+              "Additional information requested. Awaiting the borrower's response.")}>Request More Information</button>
           <button type="button" className={button} disabled={busy || detailsLoading}
             onClick={() => setDecisionIntent("approve")}>Approve Pre-closure</button>
           <label className="block text-sm font-semibold">Rejection reason
@@ -305,7 +330,8 @@ export default function PreClosure({ session, officer = false, loans = [], initi
           </div>}
         </>}
         {!canReview && !["PENDING", "UNDER_REVIEW"].includes(details.status) && <p className="text-sm text-gray-600">
-          {["APPROVED", "PAYMENT_PENDING"].includes(details.status)
+          {details.status === "MORE_INFO_REQUIRED" ? "Awaiting the borrower's response. Refresh the conversation to check for a reply."
+            : ["APPROVED", "PAYMENT_PENDING"].includes(details.status)
             ? "The review decision is recorded. Payment verification and final loan closure proceed automatically after the borrower pays."
             : details.status === "COMPLETED" ? "Loan closure is complete. This request is available here for reference."
               : "This request is closed for further review decisions."}

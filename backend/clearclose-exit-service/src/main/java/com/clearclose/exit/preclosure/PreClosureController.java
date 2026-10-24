@@ -64,6 +64,30 @@ public class PreClosureController {
         return service.myRequests(service.borrower(jwt));
     }
 
+    @GetMapping("/{requestId}/information-history")
+    public List<PreClosureService.InformationMessage> borrowerInformationHistory(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId) {
+        return service.borrowerInformationHistory(service.borrower(jwt), requestId);
+    }
+
+    @PostMapping("/{requestId}/additional-information")
+    public PreClosureRecord submitInformation(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId, @RequestBody Map<String, String> body) {
+        return service.submitInformation(service.borrower(jwt), requestId, body == null ? null : body.get("response"));
+    }
+
+    @GetMapping("/officer/{requestId}/information-history")
+    public List<PreClosureService.InformationMessage> officerInformationHistory(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId) {
+        return service.officerInformationHistory(service.officer(jwt), requestId);
+    }
+
+    @PostMapping("/officer/{requestId}/request-information")
+    public PreClosureRecord requestInformation(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("requestId") long requestId, @RequestBody Map<String, String> body) {
+        return service.requestInformation(service.officer(jwt), requestId, body == null ? null : body.get("message"));
+    }
+
     // -----------------------------------------
     // BORROWER: VIEW QUOTE
     // -----------------------------------------

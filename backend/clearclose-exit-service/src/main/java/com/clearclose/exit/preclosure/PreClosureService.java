@@ -103,8 +103,12 @@ public class PreClosureService {
                 Timestamp created = rs.getTimestamp("CREATED_AT");
                 Timestamp maturity = rs.getTimestamp("MATURITY_DATE");
                 Timestamp closure = rs.getTimestamp("CLOSURE_DATE");
+                String displayStatus = rs.getString("STATUS");
+                if ("UNDER_REVIEW".equals(displayStatus) && awaitingInformation(requestId)) {
+                    displayStatus = "MORE_INFO_REQUIRED";
+                }
                 return new PreClosureRecord(rs.getLong("CLOSURE_REQUEST_ID"), rs.getLong("LOAN_ID"),
-                    rs.getString("CLOSURE_TYPE"), rs.getString("STATUS"), rs.getString("REASON"),
+                    rs.getString("CLOSURE_TYPE"), displayStatus, rs.getString("REASON"),
                     officer == null ? null : officer.longValue(), created.toLocalDateTime(), quoteForRequest(requestId),
                     new LoanSummary(rs.getLong("BORROWER_ID"), rs.getString("BORROWER_NAME"), rs.getString("LOAN_REFERENCE"),
                         rs.getString("PRODUCT_TYPE"), rs.getBigDecimal("PRINCIPAL_AMOUNT"), rs.getBigDecimal("OUTSTANDING_AMOUNT"),
@@ -122,6 +126,93 @@ public class PreClosureService {
             ORDER BY LOG_ID DESC FETCH FIRST 1 ROW ONLY
             """, String.class, id);
         return reasons.isEmpty() ? null : reasons.getFirst();
+    }
+
+    // The existing database constraint has no MORE_INFO_REQUIRED value for
+    // pre-closure. Persist UNDER_REVIEW and derive the waiting state from audit.
+    private boolean awaitingInformation(long id) {
+        var actions = jdbc.queryForList("""
+            SELECT ACTION FROM AUDIT_LOG
+            WHERE CLOSURE_REQUEST_ID = ? AND ENTITY_ID = ? AND ENTITY_TYPE = 'LOAN_CLOSURE_REQUEST'
+              AND ACTION IN ('PRE_CLOSURE_MORE_INFO_REQUIRED', 'PRE_CLOSURE_INFO_SUBMITTED')
+            ORDER BY LOG_ID DESC FETCH FIRST 1 ROW ONLY
+            """, String.class, id, id);
+        return !actions.isEmpty() && "PRE_CLOSURE_MORE_INFO_REQUIRED".equals(actions.getFirst());
+    }
+
+    public record InformationMessage(long id, String actor, String message, LocalDateTime submittedAt) {}
+
+    private List<InformationMessage> informationHistory(long id) {
+        return jdbc.query("""
+            SELECT LOG_ID, ACTION, DETAILS, ACTION_TIME FROM AUDIT_LOG
+            WHERE CLOSURE_REQUEST_ID = ? AND ENTITY_ID = ? AND ENTITY_TYPE = 'LOAN_CLOSURE_REQUEST'
+              AND ACTION IN ('PRE_CLOSURE_MORE_INFO_REQUIRED', 'PRE_CLOSURE_INFO_SUBMITTED')
+            ORDER BY LOG_ID
+            """, (rs, n) -> new InformationMessage(rs.getLong("LOG_ID"),
+                "PRE_CLOSURE_INFO_SUBMITTED".equals(rs.getString("ACTION")) ? "BORROWER" : "OFFICER",
+                rs.getString("DETAILS"), rs.getTimestamp("ACTION_TIME").toLocalDateTime()), id, id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<InformationMessage> borrowerInformationHistory(long borrowerId, long id) {
+        get(borrowerId, id); // Ownership checked before returning any conversation.
+        return informationHistory(id);
+    }
+
+    @Transactional
+    public List<InformationMessage> officerInformationHistory(long officerId, long id) {
+        officerRequest(officerId, id); // Active officer, visibility and self-review guard.
+        return informationHistory(id);
+    }
+
+    private void requireNoSettlementStarted(long id) {
+        Integer started = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM SETTLEMENT_QUOTE q WHERE q.CLOSURE_REQUEST_ID = ?
+              AND (q.QUOTE_STATUS IN ('ACCEPTED', 'PAID') OR EXISTS (
+                  SELECT 1 FROM PAYMENT p WHERE p.QUOTE_ID = q.QUOTE_ID))
+            """, Integer.class, id);
+        if (started != null && started > 0) throw conflict("Information exchange is unavailable after settlement acceptance or payment initiation");
+    }
+
+    @Transactional
+    public PreClosureRecord requestInformation(long officerId, long id, String message) {
+        String text = message == null ? "" : message.trim();
+        validateReason(text, true);
+        long borrowerId = officerRequest(officerId, id); // Request lock serializes all decisions/replies.
+        var record = get(borrowerId, id);
+        if (!Long.valueOf(officerId).equals(record.officerId()) || !"UNDER_REVIEW".equals(record.status())
+                || record.loan() == null || !"ACTIVE".equals(record.loan().loanStatus())) {
+            throw conflict("An assigned request under review with an active loan is required to request information");
+        }
+        requireNoSettlementStarted(id);
+        int changed = jdbc.update("""
+            UPDATE LOAN_CLOSURE_REQUEST SET UPDATED_AT = SYSTIMESTAMP
+            WHERE CLOSURE_REQUEST_ID = ? AND STATUS = 'UNDER_REVIEW' AND OFFICER_ID = ?
+            """, id, officerId);
+        if (changed != 1) throw conflict("Request changed; refresh and try again");
+        audit(officerId, id, true, "PRE_CLOSURE_MORE_INFO_REQUIRED", text);
+        return get(borrowerId, id);
+    }
+
+    @Transactional
+    public PreClosureRecord submitInformation(long borrowerId, long id, String message) {
+        String text = message == null ? "" : message.trim();
+        validateReason(text, true);
+        lockOwned(borrowerId, id);
+        var record = get(borrowerId, id);
+        if (!"MORE_INFO_REQUIRED".equals(record.status()) || record.officerId() == null
+                || record.loan() == null || !"ACTIVE".equals(record.loan().loanStatus())) {
+            throw conflict("This request is not awaiting additional information for an active loan");
+        }
+        requireNoSettlementStarted(id);
+        int changed = jdbc.update("""
+            UPDATE LOAN_CLOSURE_REQUEST SET UPDATED_AT = SYSTIMESTAMP
+            WHERE CLOSURE_REQUEST_ID = ? AND STATUS = 'UNDER_REVIEW'
+            """, id);
+        if (changed != 1) throw conflict("Request changed; refresh and try again");
+        audit(borrowerId, id, false, "PRE_CLOSURE_INFO_SUBMITTED", text);
+        // Same request, loan, reason, officer and dates. No financial records changed.
+        return get(borrowerId, id);
     }
 
     public List<PreClosureRecord> myRequests(long borrowerId) {
@@ -244,7 +335,9 @@ public class PreClosureService {
 
     @Transactional
     public void assign(long officerId, long id) {
-        officerRequest(officerId, id);
+        long borrowerId = officerRequest(officerId, id);
+        if ("MORE_INFO_REQUIRED".equals(get(borrowerId, id).status()))
+            throw conflict("Awaiting the borrower's response before further review");
         int changed = jdbc.update("""
             UPDATE LOAN_CLOSURE_REQUEST SET OFFICER_ID = ?, STATUS = 'UNDER_REVIEW', UPDATED_AT = SYSTIMESTAMP
             WHERE CLOSURE_REQUEST_ID = ? AND STATUS IN ('PENDING','UNDER_REVIEW')
@@ -258,6 +351,8 @@ public class PreClosureService {
         long borrower = officerRequest(officerId, id);
         var record = get(borrower, id);
         if ("APPROVED".equals(record.status()) && Long.valueOf(officerId).equals(record.officerId())) return;
+        if ("MORE_INFO_REQUIRED".equals(record.status()))
+            throw conflict("Awaiting the borrower's response before approval");
         int changed = jdbc.update("""
             UPDATE LOAN_CLOSURE_REQUEST SET STATUS = 'APPROVED', OFFICER_ID = ?, UPDATED_AT = SYSTIMESTAMP
             WHERE CLOSURE_REQUEST_ID = ? AND STATUS IN ('PENDING','UNDER_REVIEW')
@@ -270,7 +365,9 @@ public class PreClosureService {
     @Transactional
     public void reject(long officerId, long id, String reason) {
         validateReason(reason, true);
-        officerRequest(officerId, id);
+        long borrowerId = officerRequest(officerId, id);
+        if ("MORE_INFO_REQUIRED".equals(get(borrowerId, id).status()))
+            throw conflict("Awaiting the borrower's response before further review");
         int changed = jdbc.update("""
             UPDATE LOAN_CLOSURE_REQUEST SET STATUS = 'REJECTED', OFFICER_ID = ?, UPDATED_AT = SYSTIMESTAMP
             WHERE CLOSURE_REQUEST_ID = ? AND STATUS IN ('PENDING','UNDER_REVIEW')
