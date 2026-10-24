@@ -952,6 +952,10 @@ function BorrowerDashboard({ session, onLogout }) {
         </p>
 
         <nav className="sidebar-nav">
+          <a href="#noc-dashboard" className="sidebar-link">
+            <span aria-hidden="true">▤</span>
+            NOC Certificates
+          </a>
 
           {menuItems.map((item) => (
 

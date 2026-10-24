@@ -29,6 +29,11 @@ public class NocController {
         this.access = access;
     }
 
+    @GetMapping("/issued")
+    public List<NocResponse> issued(@AuthenticationPrincipal Jwt jwt) {
+        return service.recentCertificates(access.actor(jwt));
+    }
+
     // Check NOC eligibility
     @GetMapping("/eligibility/{loanId}")
     public NocEligibilityResponse eligibility(

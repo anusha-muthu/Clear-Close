@@ -325,7 +325,8 @@ public class NocService {
         noc = nocRepository.saveAndFlush(noc);
 
         audit(noc, "GENERATION_STARTED",
-                officerId, "PDF generation started");
+                officerId, officerId == null
+                    ? "Automatic PDF generation after loan closure" : "PDF generation started");
 
         Path file = null;
 
@@ -372,6 +373,17 @@ public class NocService {
 
             return NocResponse.from(noc);
         }
+    }
+
+    @Transactional
+    public NocResponse generateAutomatically(Long loanId) {
+        // Internal scheduler only. The loan lock also serializes officer issuance.
+        LoanDetails loan = getLoan(loanId, true);
+        validateEligibility(loan);
+        var existing = nocRepository.findTopByLoanIdOrderByVersionNumberDesc(loanId);
+        if (existing.isPresent()) return NocResponse.from(existing.get());
+        // Null actor records system issuance without impersonating an officer.
+        return generateVersion(loan, 1, null, false);
     }
 
     @Transactional
@@ -483,6 +495,13 @@ public class NocService {
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "PDF retry failed", ex);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<NocResponse> recentCertificates(Actor actor) {
+        access.requireOfficerRead(actor);
+        return nocRepository.findTop100ByOrderByCreatedAtDescNocIdDesc()
+                .stream().map(NocResponse::from).toList();
     }
 
     @Transactional(readOnly = true)

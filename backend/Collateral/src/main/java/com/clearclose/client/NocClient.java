@@ -65,7 +65,7 @@ public class NocClient {
             // A failed reissue must not hide a previous certificate that is
             // still AVAILABLE. Successful reissue revokes the old certificate.
             return certificates.stream()
-                    .anyMatch(certificate -> "ISSUED".equals(certificate.get("status")));
+                    .anyMatch(certificate -> "AVAILABLE".equals(certificate.get("status")));
         } catch (RestClientResponseException ex) {
             int status = ex.getStatusCode().value();
             if (status == 401) {

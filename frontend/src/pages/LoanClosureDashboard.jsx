@@ -413,7 +413,7 @@ function LoanClosureDashboard({ session, onLogout }) {
             </a>
             <a href="#noc-dashboard" className="sidebar-link">
               <span aria-hidden="true">▤</span>
-              NOC Certificates
+              Issued NOC Certificates
             </a>
           </nav>
 

@@ -36,6 +36,16 @@ public class NocAccess {
         return new Actor(id, type, role);
     }
 
+    public void requireOfficerRead(Actor actor) {
+        if (actor == null || !"OFFICER".equals(actor.accountType())
+                || !List.of("LOAN_CLOSURE_OFFICER", "COLLATERAL_OFFICER", "ADMIN").contains(actor.role() == null ? "" : actor.role())) throw denied();
+        Integer active = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM OFFICER
+            WHERE OFFICER_ID = ? AND ROLE = ? AND ACCOUNT_STATUS = 'ACTIVE'
+            """, Integer.class, actor.id(), actor.role());
+        if (active == null || active != 1) throw denied();
+    }
+
     /** Called inside the service transaction, before returning data or writing files. */
     public void requireLoan(Actor actor, Long loanId, boolean write) {
         if (actor == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Bearer token required.");

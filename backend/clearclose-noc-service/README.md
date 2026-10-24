@@ -89,7 +89,21 @@ This service is currently developed using synthetic loan data for demonstration 
 
 The current NOC eligibility check validates loan status, outstanding balance, and closure date. Additional validations for approved loan closure, payment reconciliation, holds, and reversals will be incorporated during integration with the main CLEAR CLOSE application.
 
-JWT/access-control integration does not change the certificate generation or loan
-eligibility business checks described above, or introduce automatic NOC generation.
+NOCs are issued automatically by a background worker after a loan is CLOSED with
+zero outstanding dues and a recorded closure date. The worker checks every five
+seconds and catches up after downtime, including eligible existing closed loans.
+It processes up to 100 loans per batch. Configure the interval with
+`noc.automatic-issuance.delay-ms` and startup delay with
+`noc.automatic-issuance.initial-delay-ms` (both default to 5000).
+Issuance rechecks eligibility and locks the loan row to prevent duplicates across
+workers and manual issuance. System-issued certificates have null ISSUED_BY and
+audit ACTOR_ID, with an automatic-generation audit remark. Failed PDFs remain
+FAILED for authorized officer retry; existing certificates are never automatically
+reissued or revoked. Loan closure does not depend on the PDF service being up.
+
+Borrower and loan closure dashboards link to NOC Certificates. Borrowers download
+their own available PDFs manually. Officers can browse the latest 100 records via
+`GET /api/noc/issued`, open a loan's full history, download, retry or reissue.
+This endpoint requires an active authorized officer; borrowers cannot list it.
 
 Generated NOC PDF files are excluded from Git version control and should be stored securely in a persistent storage location when deployed.

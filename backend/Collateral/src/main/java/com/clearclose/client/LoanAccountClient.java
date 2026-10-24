@@ -28,9 +28,15 @@ public class LoanAccountClient {
                     .body(CollateralLoanResponse.class);
         } catch (RestClientResponseException ex) {
             if (ex.getStatusCode().is4xxClientError()) {
+                String message = switch (ex.getStatusCode().value()) {
+                    case 401 -> "Loan Account service rejected the token. Please sign in again.";
+                    case 403 -> "You do not have access to this loan. Select a loan linked to your borrower account.";
+                    case 404 -> "Loan lookup was not found. Check the loan account ID and Loan Account service URL.";
+                    default -> "Unable to verify loan details (Loan Account HTTP " + ex.getStatusCode().value() + ")";
+                };
                 throw new ResponseStatusException(
                         ex.getStatusCode(),
-                        "Loan Account service rejected the token or loan access",
+                        message,
                         ex);
             }
             throw new ResponseStatusException(

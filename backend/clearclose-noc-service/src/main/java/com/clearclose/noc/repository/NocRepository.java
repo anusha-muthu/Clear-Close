@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface NocRepository extends JpaRepository<Noc, Long> {
+    List<Noc> findTop100ByOrderByCreatedAtDescNocIdDesc();
 
     List<Noc> findByLoanIdOrderByVersionNumberDesc(Long loanId);
 

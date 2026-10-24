@@ -21,7 +21,8 @@ async function request(token, path, options = {}) {
     if (error.name === "AbortError") throw error;
 
     throw new Error(
-      "Unable to connect to the NOC service. Check that the backend and API Gateway are running."
+      "Unable to connect to the NOC service. Check that the backend and API Gateway are running.",
+      { cause: error }
     );
   }
 
@@ -74,6 +75,8 @@ async function request(token, path, options = {}) {
 
 export const getNocEligibility = (token, loanId, signal) =>
   request(token, `/eligibility/${encode(loanId)}`, { signal });
+
+export const getIssuedNocs = (token, signal) => request(token, "/issued", { signal });
 
 export const getLoanNocs = (token, loanId, signal) =>
   request(token, `/loan/${encode(loanId)}`, { signal });

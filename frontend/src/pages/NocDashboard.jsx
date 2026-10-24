@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getMyLoans } from "../api";
 import {
   downloadNoc,
-  generateNoc,
+  getIssuedNocs,
   getLoanNocs,
   getNocEligibility,
   getNocHistory,
@@ -78,6 +78,8 @@ function NocWorkspace({ session, onLogout }) {
   const [loansRefresh, setLoansRefresh] = useState(0);
 
   const [loanInput, setLoanInput] = useState("");
+  const [issued, setIssued] = useState([]);
+  const [issuedError, setIssuedError] = useState("");
   const [loanId, setLoanId] = useState("");
 
   const [data, setData] = useState(null);
@@ -97,6 +99,22 @@ function NocWorkspace({ session, onLogout }) {
   const actionLock = useRef(false);
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (borrower) return;
+    const controller = new AbortController();
+    getIssuedNocs(session.token, controller.signal)
+      .then((result) => { if (!controller.signal.aborted) { setIssued(result); setIssuedError(""); } })
+      .catch((error) => { if (!controller.signal.aborted) setIssuedError(error.message); });
+    return () => controller.abort();
+  }, [borrower, session.token, refresh]);
+
+  // Refresh while a closed loan is waiting for automatic issuance.
+  useEffect(() => {
+    if (!data?.eligibility?.eligible || data.certificates.length > 0) return;
+    const timer = window.setTimeout(() => setRefresh((value) => value + 1), 5000);
+    return () => window.clearTimeout(timer);
+  }, [data]);
 
   // Borrowers can choose only from their own loans.
   useEffect(() => {
@@ -274,7 +292,6 @@ function NocWorkspace({ session, onLogout }) {
 
   function manageCertificate(kind, nocId) {
     const actions = {
-      generate: () => generateNoc(session.token, loanId),
       reissue: () => reissueNoc(session.token, loanId),
       retry: () => retryNoc(session.token, nocId),
     };
@@ -432,6 +449,34 @@ function NocWorkspace({ session, onLogout }) {
             <span className="noc-banner-icon" aria-hidden="true">✓</span>
           </section>
 
+          {!borrower && (
+            <section className="noc-card">
+              <div className="noc-section-heading">
+                <h2>Recent NOC certificates</h2>
+                <button type="button" className="noc-button noc-button-outline"
+                  onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
+              </div>
+              <p className="noc-muted">Latest 100 records. Open a loan below to view its full certificate history.</p>
+              {issuedError && <p role="alert" className="noc-alert noc-alert-danger">{issuedError}</p>}
+              {!issuedError && issued.length === 0 && <p>No certificates issued yet.</p>}
+              <div className="noc-table-wrap">
+                <table className="noc-table">
+                  <thead><tr><th>Loan</th><th>Certificate</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>{issued.map((certificate) => (
+                    <tr key={certificate.nocId}>
+                      <td>{certificate.loanId}</td><td>{certificate.certificateNumber}</td>
+                      <td><StatusBadge status={certificate.status} /></td>
+                      <td><button type="button" className="noc-text-button" disabled={Boolean(busy)}
+                        onClick={() => { setLoanInput(String(certificate.loanId)); chooseLoan(String(certificate.loanId)); }}>View</button>
+                      {certificate.status === "AVAILABLE" && <button type="button" className="noc-text-button" disabled={Boolean(busy)}
+                        onClick={() => handleDownload(certificate)}>Download PDF</button>}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           <section className="noc-card" aria-labelledby="noc-loan-title">
             <div className="noc-section-heading">
               <div>
@@ -582,16 +627,7 @@ function NocWorkspace({ session, onLogout }) {
 
                 {canManage ? (
                   <div className="noc-actions">
-                    {certificates.length === 0 && (
-                      <button
-                        type="button"
-                        className="noc-button noc-button-primary"
-                        disabled={blocked || !eligibility?.eligible}
-                        onClick={() => manageCertificate("generate")}
-                      >
-                        Generate NOC
-                      </button>
-                    )}
+                    {certificates.length === 0 && <p className="noc-muted">The NOC is generated automatically after loan closure.</p>}
 
                     {latest?.status === "AVAILABLE" && (
                       <button
@@ -613,8 +649,7 @@ function NocWorkspace({ session, onLogout }) {
                   </div>
                 ) : (
                   <p className="noc-note">
-                    Certificates are issued by an authorized loan closure
-                    officer or administrator.
+                    Your NOC is generated automatically after loan closure. Download the PDF here once it is available.
                   </p>
                 )}
               </section>
@@ -635,8 +670,8 @@ function NocWorkspace({ session, onLogout }) {
                     <strong>No certificate has been issued.</strong>
                     <p>
                       {canManage
-                        ? "Generate an NOC once this loan is eligible."
-                        : "Your certificate will appear here after issuance."}
+                        ? "Automatic issuance begins once this loan is closed with zero dues and a closure date."
+                        : "Your certificate will appear here automatically after loan closure."}
                     </p>
                   </div>
                 ) : (
