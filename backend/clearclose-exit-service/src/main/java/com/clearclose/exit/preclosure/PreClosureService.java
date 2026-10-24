@@ -146,7 +146,9 @@ public class PreClosureService {
                     rs.getDate("INTEREST_PAID_THROUGH").toLocalDate(), rs.getDate("INTEREST_AS_OF_DATE").toLocalDate(),
                     rs.getLong("ACCRUED_INTEREST_DAYS"), rs.getBigDecimal("QUOTED_ANNUAL_RATE"), "Actual/365",
                     rs.getString("APPLIED_CHARGE_TYPE"), rs.getBigDecimal("APPLIED_CHARGE_VALUE"),
-                    rs.getBigDecimal("APPLIED_TAX_RATE"), rs.getString("CHARGE_POLICY_REASON"))), id);
+                    rs.getBigDecimal("APPLIED_TAX_RATE"), rs.getString("CHARGE_POLICY_REASON")),
+                rs.getObject("CALCULATION_VERSION") != null
+                    && ((Number) rs.getObject("CALCULATION_VERSION")).intValue() == 2), id);
         return quotes.isEmpty() ? null : quotes.getFirst();
     }
 
@@ -158,7 +160,7 @@ public class PreClosureService {
             throw conflict("Officer approval is required before quotation");
         var previous = record.quote();
         if (previous != null && ("ACCEPTED".equals(previous.quoteStatus()) || "PAID".equals(previous.quoteStatus())
-                || ("AVAILABLE".equals(previous.quoteStatus()) && !previous.expired()))) return previous;
+                || ("AVAILABLE".equals(previous.quoteStatus()) && !previous.expired() && !previous.legacyFeePolicy()))) return previous;
         if (!"APPROVED".equals(record.status())) throw conflict("Accepted quotes cannot be replaced");
         var loans = jdbc.query("""
             SELECT l.OUTSTANDING_AMOUNT, l.INTEREST_RATE, l.DISBURSEMENT_DATE,
@@ -209,6 +211,8 @@ public class PreClosureService {
                 && "ACCEPTED".equals(record.quote().quoteStatus()) && !record.quote().expired()) return record;
         if (!"APPROVED".equals(record.status()) || record.officerId() == null || record.quote() == null)
             throw conflict("An approved request and quotation are required");
+        if (record.quote().legacyFeePolicy())
+            throw conflict("Generate a fresh quotation under the current pre-closure fee policy before accepting");
         int changed = jdbc.update("""
             UPDATE SETTLEMENT_QUOTE SET QUOTE_STATUS = 'ACCEPTED', ACCEPTED_AT = SYSTIMESTAMP,
                 UPDATED_AT = SYSTIMESTAMP WHERE QUOTE_ID = ? AND QUOTE_STATUS = 'AVAILABLE' AND VALID_UNTIL > SYSDATE
@@ -355,7 +359,8 @@ public class PreClosureService {
         String quoteStatus,
         LocalDateTime validUntil,
         boolean expired,
-        CalculationBasis calculation
+        CalculationBasis calculation,
+        boolean legacyFeePolicy
     ) {}
 
     public record CalculationBasis(LocalDate interestPaidThrough, LocalDate settlementDate, long interestDays,

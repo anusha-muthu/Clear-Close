@@ -371,6 +371,8 @@ public class SettlementQuoteService {
         // Demo policy: one upfront-disclosed processing fee, not previously collected.
         // This is not an exit penalty; do not reuse regular foreclosure charge rules.
         // Snapshot the linked product rule's fee; later rule edits cannot reprice a quote.
+        // Loaded from this loan's SQL product rule above. A schema DEFAULT is not
+        // a runtime fee: zero, 125.50, 500, etc. are all honored without a fallback.
         BigDecimal processingFee = request.processingFee();
         if (processingFee == null || processingFee.signum() < 0
                 || processingFee.stripTrailingZeros().scale() > 2

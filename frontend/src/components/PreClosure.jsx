@@ -324,9 +324,13 @@ export default function PreClosure({ session, officer = false, loans = [], initi
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <Field title="Quote ID">{quote.quoteId}</Field><Field title="Outstanding Principal at Quotation">{money(quote.principalAmount)}</Field>
             <Field title={quote.calculation ? `Accrued Interest (${quote.calculation.interestDays} days)` : "Interest"}>{money(quote.interestAmount)}</Field>
-            <Field title="Permitted Foreclosure Charges">{money(quote.chargesAmount)}</Field>
-            <Field title="Tax on Foreclosure Charges">{money(quote.taxAmount)}</Field><Field title="Valid Until">{date(quote.validUntil)}</Field>
+            {!quote.legacyFeePolicy && <Field title="Permitted Foreclosure Charges">{money(quote.chargesAmount)}</Field>}
+            <Field title={quote.legacyFeePolicy ? "Tax Included in Quotation" : "Tax on Foreclosure Charges"}>{money(quote.taxAmount)}</Field><Field title="Valid Until">{date(quote.validUntil)}</Field>
           </dl>
+          {quote.legacyFeePolicy && <p className="text-sm text-amber-900">
+            The total includes all charges saved with this earlier quotation. No additional fee is being added.
+            {quote.quoteStatus === "AVAILABLE" && " Generate a fresh quotation before accepting."}
+          </p>}
           {quote.calculation && <div className="space-y-4 rounded-xl border border-gray-200 p-5">
             <h5 className="font-semibold">How this settlement was calculated</h5>
             <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -341,7 +345,8 @@ export default function PreClosure({ session, officer = false, loans = [], initi
             </dl>
             <p className="text-sm text-gray-600">{quote.calculation.chargePolicyReason}</p>
             <p className="text-sm text-gray-600">Interest = outstanding principal × annual rate × unpaid interest days ÷ 36,500.
-              Future months of interest are excluded. Tax applies to foreclosure charges only.</p>
+              {quote.legacyFeePolicy ? " This earlier quotation retains its original charges and tax basis."
+                : " Future months of interest are excluded. Tax applies to foreclosure charges only."}</p>
           </div>}
           {details.status === "COMPLETED" && <p className="text-sm text-gray-600">
             This paid quotation records the amounts settled. The current loan balance is zero after payment.
@@ -350,10 +355,10 @@ export default function PreClosure({ session, officer = false, loans = [], initi
           {expired && !["PAID"].includes(quote.quoteStatus) && <p className="text-amber-900">The payment deadline has passed. No new checkout can be opened.
             {quote.quoteStatus === "AVAILABLE" ? " Generate a fresh quotation before accepting." : " An accepted quotation cannot be replaced. Contact the bank for assistance; refresh payment status if you already paid."}</p>}
         </>}
-        {!officer && details.status === "APPROVED" && (!quote || (quote.quoteStatus === "AVAILABLE" && expired)) &&
+        {!officer && details.status === "APPROVED" && (!quote || (quote.quoteStatus === "AVAILABLE" && (expired || quote.legacyFeePolicy))) &&
           <button type="button" className={button} disabled={busy || detailsLoading}
             onClick={() => action(`${quotePath}/quote`, null, "Quotation generated. Review all amounts before accepting.")}>{quote ? "Regenerate Quotation" : "Create Quotation"}</button>}
-        {!officer && details.status === "APPROVED" && quote?.quoteStatus === "AVAILABLE" && !expired && <>
+        {!officer && details.status === "APPROVED" && quote?.quoteStatus === "AVAILABLE" && !expired && !quote.legacyFeePolicy && <>
           <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={acknowledged} disabled={busy}
             onChange={(event) => setAcknowledged(event.target.checked)} className="mt-1" />
             I have reviewed the settlement amount, charges and payment deadline and accept this quotation.</label>

@@ -5,6 +5,7 @@ import CollateralReleaseDashboard from "./CollateralReleaseDashboard";
 import SettlementPayment from "../components/SettlementPayment";
 import RequestInformation from "../components/RequestInformation";
 import PreClosure from "../components/PreClosure";
+import BorrowerNavIcon from "../components/BorrowerNavIcon";
 import {
   acceptSettlementQuote,
   checkCoolingOffEligibility,
@@ -625,10 +626,11 @@ function BorrowerDashboard({ session, onLogout }) {
   // -----------------------------------------
 
   const menuItems = [
-    { id: "cooling-off", icon: "↶", label: "Cooling-off Exit" },
-    { id: "preclosure", icon: "↗", label: "Pre-closure" },
-    { id: "overview", icon: "▦", label: "Overview" },
-    { id: "my-loans", icon: "◫", label: "My Loans" },
+    { id: "collateral", label: "Collateral" },
+    { id: "cooling-off", label: "Cooling-off Exit" },
+    { id: "preclosure", label: "Pre-closure" },
+    { id: "overview", label: "Overview" },
+    { id: "my-loans", label: "My Loans" },
   ];
 
   const coolingPageLoans = loans.filter((loan) => loan.loanStatus === "ACTIVE");
@@ -953,7 +955,7 @@ function BorrowerDashboard({ session, onLogout }) {
 
         <nav className="sidebar-nav">
           <a href="#noc-dashboard" className="sidebar-link">
-            <span aria-hidden="true">▤</span>
+            <BorrowerNavIcon name="noc" />
             NOC Certificates
           </a>
 
@@ -968,7 +970,7 @@ function BorrowerDashboard({ session, onLogout }) {
               }
               onClick={() => changeMenu(item.id)}
             >
-              <span>{item.icon}</span>
+              <BorrowerNavIcon name={item.id} />
               {item.label}
             </button>
 
@@ -1026,7 +1028,6 @@ function BorrowerDashboard({ session, onLogout }) {
           <nav aria-label="Borrower features" className="flex shrink-0 flex-wrap items-center gap-2">
             {[
               { id: "grievance", label: "Grievance" },
-              { id: "collateral", label: "Collateral" },
             ].map((feature) => (
               <button
                 key={feature.id}
