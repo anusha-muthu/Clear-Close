@@ -153,9 +153,18 @@ public class GrievanceService {
             SELECT COUNT(*) FROM BORROWERS WHERE USER_ID = :id AND ACCOUNT_STATUS = 'ACTIVE'
             """).setParameter("id", actorId).getSingleResult();
         if (activeBorrowers.longValue() != 1) throw error(HttpStatus.FORBIDDEN, "Borrower account is not active");
-        if (grievanceRepository.existsByLoanAccountId(input.getLoanAccountId())) {
-            throw error(HttpStatus.CONFLICT, "A grievance already exists for this loan.");
-        }
+        boolean activeGrievanceExists =
+        	    grievanceRepository.existsByLoanAccountIdAndStatusIn(
+        	        input.getLoanAccountId(),
+        	        List.of("OPEN", "IN_PROGRESS", "ESCALATED")
+        	    );
+
+        	if (activeGrievanceExists) {
+        	    throw new ResponseStatusException(
+        	        HttpStatus.CONFLICT,
+        	        "An active grievance already exists for this loan."
+        	    );
+        	}
 
         // Build a fresh entity: ignore any ID, assignment, status, timestamps or
         // resolution supplied in the borrower request body.
@@ -377,7 +386,7 @@ public class GrievanceService {
     @Transactional(readOnly = true)
     public List<Grievances> getOverdueGrievances() {
         return grievanceRepository.findByStatusNotInAndCreatedAtBefore(
-            List.of("RESOLVED", "REJECTED", "CLOSED", "ESCALATED"), LocalDateTime.now().minusDays(5));
+            List.of("RESOLVED", "REJECTED", "CLOSED", "ESCALATED"), LocalDateTime.now().minusDays(7));
     }
 
     // Called through a separate Spring bean so the transaction interceptor runs.
@@ -385,7 +394,7 @@ public class GrievanceService {
     @Transactional
     public int escalateOverdueGrievances() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime cutoff = now.minusDays(5);
+        LocalDateTime cutoff = now.minusDays(7);
         List<?> candidates = entityManager.createNativeQuery("""
             SELECT g.GRIEVANCE_ID FROM GRIEVANCES g
 			WHERE g.CREATED_AT < :cutoff

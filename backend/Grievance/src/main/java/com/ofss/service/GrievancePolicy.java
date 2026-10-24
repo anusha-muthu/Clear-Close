@@ -9,7 +9,7 @@ public final class GrievancePolicy {
     private GrievancePolicy() {}
 
     public static final Set<String> OFFICER_ROLES = Set.of(
-        "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER", "ADMIN","SENIOR_GRIEVANCE_OFFICER"
+        "LOAN_CLOSURE_OFFICER", "GRIEVANCE_OFFICER", "COLLATERAL_OFFICER","SENIOR_GRIEVANCE_OFFICER"
     );
 
     public static final Set<String> STATUSES = Set.of(
@@ -52,10 +52,28 @@ public final class GrievancePolicy {
     // Five elapsed days since submission, not five days since the last update.
     public static boolean isOverdue(String status, LocalDateTime createdAt, LocalDateTime now) {
         return Set.of("OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED").contains(status)
-            && createdAt != null && now != null && createdAt.isBefore(now.minusDays(5));
+            && createdAt != null && now != null && createdAt.isBefore(now.minusDays(7));
     }
 
-    public static boolean canTransition(String from, String to) {
-        return TRANSITIONS.getOrDefault(from, Set.of()).contains(to);
+    public static boolean canTransition(String oldStatus, String newStatus) {
+        if (oldStatus == null || newStatus == null) {
+            return false;
+        }
+
+        String from = normalize(oldStatus);
+        String to = normalize(newStatus);
+
+        return switch (from) {
+            case "OPEN" ->
+                "IN_PROGRESS".equals(to) || "ESCALATED".equals(to) || "CLOSED".equals(to);
+
+            case "IN_PROGRESS" ->
+                "ESCALATED".equals(to) || "CLOSED".equals(to);
+
+            case "ESCALATED" ->
+                "IN_PROGRESS".equals(to) ||"CLOSED".equals(to);
+
+            default -> false;
+        };
     }
 }
