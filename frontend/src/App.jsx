@@ -281,20 +281,7 @@ function App() {
     }
 
     return (
-      <>
-        <nav className="flex flex-wrap items-center gap-4 border-b p-4">
-          <a href="#officer-portals">← Officer services</a>
-          <a href="#noc-dashboard">NOC Certificates</a>
-
-          <span>{session.username}</span>
-
-          <button type="button" onClick={handleLogout}>
-            Sign out
-          </button>
-        </nav>
-
-        <CollateralReleaseDashboard session={session} />
-      </>
+      <CollateralReleaseDashboard session={session} onLogout={handleLogout} />
     );
   }
 

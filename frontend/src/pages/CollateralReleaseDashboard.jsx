@@ -37,7 +37,7 @@ function StatusBadge({ status }) {
   return <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${color}`}>{String(status || "UNKNOWN").replaceAll("_", " ")}</span>;
 }
 
-export default function CollateralReleaseDashboard({ session }) {
+export default function CollateralReleaseDashboard({ session, onLogout }) {
   const isBorrowerUser = Boolean(session?.token)
     && session?.accountType === "BORROWER" && session?.role === "BORROWER";
   const isOfficerUser = Boolean(session?.token)
@@ -251,7 +251,47 @@ export default function CollateralReleaseDashboard({ session }) {
   }
 
   return (
-    <div className="min-h-screen bg-white px-6 py-14 text-[#102018] lg:px-16 lg:py-16">
+    <div className={isOfficerUser ? "officer-shell" : undefined}>
+      <div className={isOfficerUser ? "officer-layout" : undefined}>
+        {isOfficerUser && <aside className="officer-sidebar borrower-sidebar">
+          <a href="#home" className="dashboard-brand dashboard-brand-light">
+            <span className="dashboard-brand-mark" />
+            Clear<span>Close</span>
+          </a>
+          <p className="sidebar-heading officer-sidebar-label">Officer Portal</p>
+          <nav aria-label="Collateral officer navigation" className="sidebar-nav officer-sidebar-nav">
+            <button type="button" aria-pressed={officerView === "requests"}
+              disabled={registerBusy || isActing} onClick={() => setOfficerView("requests")}
+              className={`sidebar-link ${officerView === "requests" ? "active" : ""}`}>
+              <span aria-hidden="true">▦</span>
+              Release Requests
+            </button>
+            <button type="button" aria-pressed={officerView === "register"}
+              disabled={registerBusy || isActing} onClick={() => setOfficerView("register")}
+              className={`sidebar-link ${officerView === "register" ? "active" : ""}`}>
+              <span aria-hidden="true">▤</span>
+              Collateral Register
+            </button>
+            <a href="#noc-dashboard" className="sidebar-link">
+              <span aria-hidden="true">▧</span>
+              NOC Certificates
+            </a>
+            <a href="#officer-portals" className="sidebar-link">
+              <span aria-hidden="true">←</span>
+              Back to Roles
+            </a>
+          </nav>
+          <div className="officer-sidebar-account">
+            <div className="officer-account-card">
+              <p className="font-semibold">{session?.username}</p>
+              <p>{String(session?.role || "Officer").replaceAll("_", " ")}</p>
+            </div>
+            <button type="button" onClick={onLogout} className="officer-logout-button">Logout</button>
+          </div>
+        </aside>}
+    <div role={isOfficerUser ? "main" : undefined} className={isOfficerUser
+      ? "officer-main dashboard-main min-w-0"
+      : "min-h-screen bg-white px-6 py-14 text-[#102018] lg:px-16 lg:py-16"}>
       <header className="mx-auto mb-8 flex max-w-7xl flex-col gap-4 border-b border-[#dfe5df] pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-lime-700">{isOfficerUser ? "Bank Operations Console" : "Customer Asset Portal"}</p>
@@ -262,10 +302,6 @@ export default function CollateralReleaseDashboard({ session }) {
         {isBorrowerUser && <button type="button" disabled={loading || isSubmitting} onClick={() => { setFormError(""); setSelectionCheck(null); setIsNewRequestModalOpen(true); }} className="cursor-pointer whitespace-nowrap rounded-full bg-black px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800">+ Request Asset Release</button>}
       </header>
 
-      {isOfficerUser && <nav aria-label="Collateral officer sections" className="mx-auto mb-6 flex max-w-7xl flex-wrap gap-3">
-        <button type="button" aria-pressed={officerView === "requests"} disabled={registerBusy || isActing} onClick={() => setOfficerView("requests")} className={`rounded-full border px-5 py-3 text-sm font-semibold disabled:opacity-50 ${officerView === "requests" ? "bg-black text-white" : "bg-white"}`}>Release requests</button>
-        <button type="button" aria-pressed={officerView === "register"} disabled={registerBusy || isActing} onClick={() => setOfficerView("register")} className={`rounded-full border px-5 py-3 text-sm font-semibold disabled:opacity-50 ${officerView === "register" ? "bg-black text-white" : "bg-white"}`}>Collateral register</button>
-      </nav>}
       {isOfficerUser && officerView === "register" && <CollateralRegister session={session} onBusyChange={setRegisterBusy} />}
       <div hidden={isOfficerUser && officerView === "register"}>
       <div className="mx-auto mb-5 flex max-w-7xl items-center justify-between gap-4">
@@ -359,6 +395,8 @@ export default function CollateralReleaseDashboard({ session }) {
           <div className="flex flex-wrap justify-end gap-3 pt-3"><button type="button" disabled={isSubmitting} onClick={() => setIsNewRequestModalOpen(false)} className="cursor-pointer rounded-full border border-black px-6 py-3 text-sm font-semibold hover:bg-gray-100">Cancel</button><button type="submit" disabled={isSubmitting || !canSubmitSelection} className="cursor-pointer rounded-full bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800">{isSubmitting ? "Submitting…" : "Submit Request"}</button></div>
         </form>
       </dialog>
+      </div>
+    </div>
       </div>
     </div>
   );

@@ -1,0 +1,66 @@
+-- COOLING-OFF EXAMPLE: Tara, 150000 loan, disbursed exactly two days ago.
+-- Run manually with F5 AFTER consolidated.db and the full Java seeder.
+-- Five-day cooling-off window: approximately three days remain at insertion.
+-- Standalone demo terms explicitly waive the processing fee; no taxable fee.
+-- No changes to the existing cooling-off calculation or other product rules.
+-- Run once; use a different loan reference to create another example.
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+SET AUTOCOMMIT OFF
+
+INSERT INTO LOAN_PRODUCT_RULE (
+    PRODUCT_TYPE, COOLING_OFF_DAYS, COOLING_OFF_PROCESSING_FEE,
+    EARLY_CLOSURE_ALLOWED, CLOSURE_CHARGE_TYPE, CLOSURE_CHARGE_VALUE,
+    CLOSURE_TAX_RATE, EFFECTIVE_FROM, RULE_STATUS
+)
+SELECT 'DEMO_COOLING_OFF_150K', 5, 0, 'Y', 'NONE', 0, 0,
+       DATE '2026-01-01', 'ACTIVE'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM LOAN_PRODUCT_RULE
+    WHERE PRODUCT_TYPE = 'DEMO_COOLING_OFF_150K'
+      AND EFFECTIVE_FROM = DATE '2026-01-01'
+);
+
+INSERT INTO LOAN_ACCOUNT (
+    BORROWER_ID, RULE_ID, LOAN_REFERENCE,
+    PRINCIPAL_AMOUNT, OUTSTANDING_AMOUNT, INTEREST_RATE, TENURE_MONTHS,
+    DISBURSEMENT_DATE, MATURITY_DATE, LOAN_STATUS, CLOSURE_DATE,
+    INTEREST_PAID_THROUGH, INTEREST_RATE_TYPE, LOAN_PURPOSE, PREPAYMENT_CHARGE_ALLOWED
+)
+VALUES (
+    (SELECT USER_ID FROM BORROWERS WHERE USERNAME = 'tara_demo26' AND ACCOUNT_STATUS = 'ACTIVE'),
+    (SELECT RULE_ID FROM LOAN_PRODUCT_RULE WHERE PRODUCT_TYPE = 'DEMO_COOLING_OFF_150K'
+        AND EFFECTIVE_FROM = DATE '2026-01-01' AND RULE_STATUS = 'ACTIVE'),
+    'CC-COOLING-150K-001', 150000, 150000, 12, 24,
+    SYSDATE - 2, ADD_MONTHS(SYSDATE - 2, 24), 'ACTIVE', NULL,
+    TRUNC(SYSDATE - 2), 'FIXED', 'NON_BUSINESS', 'N'
+);
+
+INSERT INTO COLLATERAL (
+    LOAN_ACCOUNT_ID, COLLATERAL_TYPE, DESCRIPTION,
+    FILE_NAME, STORAGE_PATH, CUSTODIAN, RELEASE_STATUS
+)
+VALUES (
+    (SELECT LOAN_ID FROM LOAN_ACCOUNT WHERE LOAN_REFERENCE = 'CC-COOLING-150K-001'),
+    'GOLD', 'Synthetic pledged gold jewellery; no real asset is deposited',
+    'cooling_gold.pdf', '/demo/cooling_gold.pdf', 'Mumbai Branch', 'NOT_ELIGIBLE'
+);
+
+COMMIT;
+
+SELECT b.USERNAME, l.LOAN_ID, l.LOAN_REFERENCE, l.PRINCIPAL_AMOUNT,
+       l.OUTSTANDING_AMOUNT, l.INTEREST_RATE, l.LOAN_STATUS,
+       l.DISBURSEMENT_DATE, l.DISBURSEMENT_DATE + r.COOLING_OFF_DAYS AS COOLING_OFF_EXPIRY,
+       r.COOLING_OFF_PROCESSING_FEE, c.COLLATERAL_ID
+FROM LOAN_ACCOUNT l
+JOIN BORROWERS b ON b.USER_ID = l.BORROWER_ID
+JOIN LOAN_PRODUCT_RULE r ON r.RULE_ID = l.RULE_ID
+JOIN COLLATERAL c ON c.LOAN_ACCOUNT_ID = l.LOAN_ID
+WHERE l.LOAN_REFERENCE = 'CC-COOLING-150K-001';
+
+-- FRONTEND: Tara -> Cooling-Off Exit -> request -> officer approval -> quote.
+-- Approximate quote at exactly two days: 150000 + 98.63 + 0 fee + 0 tax = 150098.63.
+-- Cooling-off uses actual elapsed seconds, so interest increases until quotation.
+-- Then accept, pay in test mode, refresh closure, download NOC and request gold release.
+-- Kafka and backend services must be running. No request/payment/NOC is pre-created.
+WHENEVER SQLERROR CONTINUE NONE
