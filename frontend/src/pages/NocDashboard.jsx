@@ -97,6 +97,7 @@ function NocWorkspace({ session, onLogout }) {
 
   const [busy, setBusy] = useState("");
   const actionLock = useRef(false);
+  const detailsRef = useRef(null);
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -718,8 +719,18 @@ function NocWorkspace({ session, onLogout }) {
                                   }
                                   disabled={Boolean(busy)}
                                   onClick={() => {
-                                    setHistory(null);
                                     setSelectedId(String(certificate.nocId));
+                                    window.requestAnimationFrame(() => {
+                                      const panel = detailsRef.current;
+                                      if (!panel) return;
+                                      panel.focus({ preventScroll: true });
+                                      panel.scrollIntoView({
+                                        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                                          ? "auto"
+                                          : "smooth",
+                                        block: "start",
+                                      });
+                                    });
                                   }}
                                 >
                                   Details
@@ -767,11 +778,17 @@ function NocWorkspace({ session, onLogout }) {
               </section>
 
               {selected && (
-                <section className="noc-card">
+                <section
+                  ref={detailsRef}
+                  className="noc-card"
+                  tabIndex={-1}
+                  aria-labelledby="noc-certificate-details-title"
+                  style={{ scrollMarginTop: "24px" }}
+                >
                   <div className="noc-section-heading">
                     <div>
                       <p className="dashboard-eyebrow">Certificate Details</p>
-                      <h2>Version {selected.versionNumber}</h2>
+                      <h2 id="noc-certificate-details-title">Version {selected.versionNumber}</h2>
                     </div>
                     <StatusBadge status={selected.status} />
                   </div>

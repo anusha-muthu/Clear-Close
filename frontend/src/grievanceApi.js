@@ -1,4 +1,4 @@
-const GRIEVANCE_URL = "http://localhost:8086";
+const GRIEVANCE_URL = "http://localhost:8080";
 
 const BASE_PATH = "/api/grievances";
 

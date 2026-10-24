@@ -1,6 +1,4 @@
-const COLLATERAL_URL = (
-  import.meta.env?.VITE_COLLATERAL_API_URL || "http://localhost:8087"
-).trim().replace(/\/+$/, "");
+const COLLATERAL_URL = "http://localhost:8080";
 
 const BASE = "/api/collateral-release/requests";
 

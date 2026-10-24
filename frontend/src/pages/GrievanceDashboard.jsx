@@ -38,7 +38,7 @@ const emptyForm = {
 function statusClass(status) {
   if (status === "OPEN") return "bg-orange-100 text-orange-700";
   if (status === "IN_PROGRESS") return "bg-sky-100 text-sky-700";
-  if (status === "RESOLVED" || status === "CLOSED")
+  if (status === "CLOSED")
     return "bg-lime-100 text-lime-800";
   if (status === "ESCALATED") return "bg-red-100 text-red-700";
   return "bg-gray-100 text-gray-700";
@@ -204,8 +204,8 @@ export default function GrievanceDashboard({ session }) {
       style: "border-sky-200 bg-sky-50 text-sky-700",
     },
     {
-      label: "Resolved",
-      value: tickets.filter((t) => t.status === "RESOLVED").length,
+      label: "Closed",
+      value: tickets.filter((t) => t.status === "CLOSED").length,
       style: "border-lime-200 bg-[#f3fce7] text-lime-700",
     },
   ];
@@ -356,7 +356,6 @@ export default function GrievanceDashboard({ session }) {
                 "ALL",
                 "OPEN",
                 "IN_PROGRESS",
-                "RESOLVED",
                 "ESCALATED",
                 "CLOSED",
               ].map((status) => (
