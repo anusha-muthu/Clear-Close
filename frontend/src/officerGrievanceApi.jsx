@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8080";
+const API_URL = "http://localhost:8091";
 const BASE = "/api/grievances";
 
 async function request(session, path, options = {}) {
@@ -6,80 +6,147 @@ async function request(session, path, options = {}) {
     throw new Error("Sign in with an officer account.");
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${session.token}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
-  const text = await response.text();
-  let data = null;
+  const forwardAbort = () => controller.abort();
+  options.signal?.addEventListener("abort", forwardAbort, { once: true });
+
   try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    if (response.ok) throw new Error("The server returned an invalid response.");
-  }
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        ...(options.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...(options.headers || {}),
+      },
+    });
 
-  if (!response.ok) {
-    const messages = {
-      401: "Your session expired. Sign in again.",
-      403: "You cannot access or update this complaint.",
-      404: "The grievance was not found.",
-      409: "This grievance changed. Refresh before updating it.",
-    };
-    const error = new Error(
-      data?.detail || data?.message || messages[response.status] ||
-      `Request failed (${response.status}).`
-    );
-    error.status = response.status;
+    const text = await response.text();
+    let data = null;
+
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("The server returned an invalid response.");
+      }
+    }
+
+    if (!response.ok) {
+      const messages = {
+        401: "Your session expired. Sign in again.",
+        403: "You are not allowed to access this grievance.",
+        404: "The grievance endpoint was not found.",
+        409: "The grievance changed. Refresh and try again.",
+      };
+
+      throw new Error(
+        data?.detail ||
+        data?.message ||
+        messages[response.status] ||
+        `Request failed (${response.status})`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Request timed out. Check the grievance service.");
+    }
     throw error;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", forwardAbort);
   }
-  return data;
 }
 
 export async function getAssignedGrievances(session, signal) {
-  if (!session?.userId) throw new Error("Officer identity is missing; sign in again.");
-  const data = await request(session,
-    `${BASE}/officer/${encodeURIComponent(session.userId)}`, { signal });
-  if (!Array.isArray(data)) throw new Error("Unexpected grievance list response.");
-  return data;
-}
+  const officerId = session?.officerId ?? session?.userId;
 
-export function updateAssignedGrievance(session, grievanceId, change, signal) {
-  return request(session, `${BASE}/${encodeURIComponent(grievanceId)}/status`, {
-    method: "PATCH",
-    // Existing controller accepts status + remarks. It does not support expectedStatus.
-    body: JSON.stringify({ status: change.status, remarks: change.remarks }),
-    signal,
-  });
+  if (!officerId) {
+    throw new Error("Officer identity is missing. Sign in again.");
+  }
+
+  const data = await request(
+    session,
+    `${BASE}/officer/${encodeURIComponent(officerId)}`,
+    { signal }
+  );
+
+  if (!Array.isArray(data)) {
+    throw new Error("Unexpected grievance list response.");
+  }
+
+  return data;
 }
 
 export async function getSeniorGrievances(session, signal) {
   if (session?.role !== "SENIOR_GRIEVANCE_OFFICER") {
     throw new Error("A senior grievance officer account is required.");
   }
+
   const data = await request(session, BASE, { signal });
-  if (!Array.isArray(data)) throw new Error("Unexpected senior grievance queue response.");
+
+  if (!Array.isArray(data)) {
+    throw new Error("Unexpected senior grievance queue response.");
+  }
+
   return data;
 }
 
-export async function assignGrievance(session, grievanceId, officerId, signal) {
-  if (session?.role !== "SENIOR_GRIEVANCE_OFFICER") {
-    throw new Error("Only a senior grievance officer can assign grievances.");
+export async function getSeniorOverdueNotifications(session, signal) {
+  const data = await request(
+    session,
+    `${BASE}/senior/overdue-notifications`,
+    { signal }
+  );
+
+  if (!Array.isArray(data)) {
+    throw new Error("Unexpected overdue notification response.");
   }
-  const grievance = Number(grievanceId);
-  const officer = Number(officerId);
-  if (!Number.isSafeInteger(grievance) || grievance <= 0 ||
-      !Number.isSafeInteger(officer) || officer <= 0) {
-    throw new Error("Enter valid grievance and officer IDs.");
-  }
-  const data = await request(session, `${BASE}/${grievance}/assign`, {
-    method: "PATCH", body: JSON.stringify({ officerId: officer }), signal,
-  });
-  if (String(data?.grievanceId) !== String(grievance)) {
-    throw new Error("Unexpected assignment response. Refresh to verify before retrying.");
-  }
+
   return data;
+}
+
+export function updateAssignedGrievance(
+  session,
+  grievanceId,
+  change,
+  signal
+) {
+  return request(
+    session,
+    `${BASE}/${encodeURIComponent(grievanceId)}/status`,
+    {
+      method: "PATCH",
+      signal,
+      body: JSON.stringify({
+        status: change.status,
+        remarks: change.remarks,
+      }),
+    }
+  );
+}
+
+export function assignGrievance(
+  grievanceId,
+  officerId,
+  session,
+  signal
+) {
+  return request(
+    session,
+    `${BASE}/${encodeURIComponent(grievanceId)}/assign`,
+    {
+      method: "PATCH",
+      signal,
+      body: JSON.stringify({
+        officerId: Number(officerId),
+      }),
+    }
+  );
 }

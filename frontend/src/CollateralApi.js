@@ -1,4 +1,4 @@
-const COLLATERAL_URL = "http://localhost:8080";
+const COLLATERAL_URL = "http://localhost:8091";
 
 const BASE = "/api/collateral-release/requests";
 

@@ -1,5 +1,5 @@
 // Direct connection to your collateral service. Use 8080 only after gateway routing is verified.
-const API_URL = "http://localhost:8080";
+const API_URL = "http://localhost:8091";
 const BASE = "/api/collateral-release/requests";
 
 async function request(session, path, method = "GET", body, signal) {

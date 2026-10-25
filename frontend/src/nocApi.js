@@ -1,5 +1,5 @@
 const API_URL = (
-  import.meta.env.VITE_NOC_API_URL || "http://localhost:8080"
+  import.meta.env.VITE_NOC_API_URL || "http://localhost:8091"
 ).replace(/\/+$/, "");
 
 const encode = (value) => encodeURIComponent(String(value));

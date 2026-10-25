@@ -5,6 +5,7 @@ import {
   assignGrievance,
   updateAssignedGrievance,
 } from "../officerGrievanceApi.jsx";
+import SeniorOverdueNotice from "../components/SeniorOverdueNotice";
 
 const CATEGORY_LABELS = {
   DELAY: "NOC / collateral processing delay",
@@ -51,17 +52,40 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
   const [targetOfficerId, setTargetOfficerId] = useState("");
   const role = session?.role;
   const isSenior = role === "SENIOR_GRIEVANCE_OFFICER";
+  const currentOfficerId = session?.officerId ?? session?.userId;
   const ownsSelected = selectedId != null && tickets.some((ticket) =>
     String(ticket.grievanceId) === String(selectedId) &&
-    String(ticket.assignedTo) === String(session?.userId));
+    String(ticket.assignedTo) === String(currentOfficerId));
   const token = session?.token;
   const accountType = session?.accountType;
   const userId = session?.userId;
-  const selected = tickets.find((ticket) => ticket.grievanceId === selectedId);
-
+  const selected = tickets.find(
+    (ticket) => String(ticket.grievanceId) === String(selectedId)
+  );
   useEffect(() => {
     setTickets([]); setSelectedId(null); setError(""); setNotice("");
   }, [token, accountType, userId, role]);
+
+//   useEffect(() => {
+//   const controller = new AbortController();
+
+//   async function loadGrievances() {
+//     setLoading(true);
+//     try {
+//       const result = await getAssignedGrievances(session, controller.signal);
+//       setGrievances(Array.isArray(result) ? result : result.data ?? []);
+//     } catch (error) {
+//       if (error.name !== "AbortError") {
+//         setError(error.message);
+//       }
+//     } finally {
+//       setLoading(false);
+//     }
+//   }
+
+//   loadGrievances();
+//   return () => controller.abort();
+// }, [session?.token, session?.userId, refresh]);
 
   useEffect(() => {
     let active = true;
@@ -78,7 +102,7 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
       setLoading(true); setError("");
       try {
         const load = isSenior ? getSeniorGrievances : getAssignedGrievances;
-        const rows = await load({ token, accountType, userId, role }, controller.signal);
+        const rows = await load({ token, accountType, userId, officerId: currentOfficerId, role }, controller.signal);
         if (!active || controller.signal.aborted || version !== listVersion.current || busy.current) return;
         if (!Array.isArray(rows)) throw new Error("Unexpected grievance queue response.");
         setTickets(rows);
@@ -103,7 +127,7 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [token, accountType, userId, role, isSenior, refresh]);
+  }, [token, accountType, userId, currentOfficerId, role, isSenior, refresh]);
 
   useEffect(() => {
     setNextStatus("");
@@ -125,77 +149,224 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
   );
 
   async function save(event) {
-    event.preventDefault();
-    if (busy.current || !selected || !ownsSelected) return;
-    if (!(TRANSITIONS[selected.status] || []).includes(nextStatus) || !remarks.trim()) {
-      setError("Choose a status and enter action remarks.");
-      return;
-    }
-    const controller = new AbortController();
-    mutation.current = controller;
-    busy.current = true;
-    listController.current?.abort(); ++listVersion.current; setLoading(false);
-    setSaving(true);
-    setError("");
-    setNotice("");
-    try {
-      const updated = await updateAssignedGrievance(session, selected.grievanceId, {
-        expectedStatus: selected.status,
-        status: nextStatus,
-        remarks: remarks.trim(),
-      }, controller.signal);
-      if (controller.signal.aborted) return;
-      setTickets((rows) => rows.flatMap((row) => {
-        if (String(row.grievanceId) !== String(updated.grievanceId)) return [row];
-        const inQueue = isSenior
-          ? updated.status === "ESCALATED" || String(updated.assignedTo) === String(userId) ||
-            (updated.assignedTo == null && !["RESOLVED", "REJECTED", "CLOSED"].includes(updated.status))
-          : String(updated.assignedTo) === String(userId);
-        return inQueue ? [updated] : [];
-      }));
-      setNextStatus("");
-      setRemarks("");
-      setNotice(updated.status === "ESCALATED"
-        ? "Grievance escalated. The senior queue will update automatically."
-        : "Grievance updated.");
-      setRefresh((value) => value + 1);
-    } catch (err) {
-      if (err.name !== "AbortError") setError(err.message);
-    } finally {
-      if (mutation.current === controller) {
-        busy.current = false;
-        if (!controller.signal.aborted) setSaving(false);
-      }
-    }
+  event.preventDefault();
+
+  if (busy.current || !selected || !ownsSelected) {
+    return;
   }
 
-  async function saveAssignment(event) {
-    event.preventDefault();
-    if (busy.current || !selected || !isSenior) return;
-    const controller = new AbortController();
-    mutation.current = controller; busy.current = true;
-    listController.current?.abort(); ++listVersion.current; setLoading(false);
-    setSaving(true); setError(""); setNotice("");
-    try {
-      const updated = await assignGrievance(session, selected.grievanceId, targetOfficerId, controller.signal);
-      if (controller.signal.aborted) return;
-      setTickets((rows) => rows.flatMap((row) => {
-        if (String(row.grievanceId) !== String(updated.grievanceId)) return [row];
-        return updated.status === "ESCALATED" || String(updated.assignedTo) === String(userId)
-          ? [updated] : [];
-      }));
-      setTargetOfficerId("");
-      setNotice(`Grievance #${updated.grievanceId} assigned to officer #${updated.assignedTo}.`);
-      setRefresh((value) => value + 1);
-    } catch (err) {
-      if (!controller.signal.aborted) setError(err.message);
-    } finally {
-      if (mutation.current === controller) {
-        busy.current = false;
-        if (!controller.signal.aborted) setSaving(false);
-      }
+  if (
+    !(TRANSITIONS[selected.status] || []).includes(nextStatus) ||
+    !remarks.trim()
+  ) {
+    setError("Choose a status and enter action remarks.");
+    return;
+  }
+
+  const controller = new AbortController();
+  mutation.current = controller;
+  busy.current = true;
+
+  listController.current?.abort();
+  ++listVersion.current;
+
+  setSaving(true);
+  setLoading(false);
+  setError("");
+  setNotice("");
+
+  try {
+    const saved = await updateAssignedGrievance(
+      session,
+      selected.grievanceId,
+      {
+        status: nextStatus,
+        remarks: remarks.trim(),
+      },
+      controller.signal
+    );
+
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    const updated = saved?.data ?? saved;
+
+    setTickets((previous) =>
+      previous.flatMap((ticket) => {
+        if (
+          String(ticket.grievanceId) !==
+          String(updated.grievanceId)
+        ) {
+          return [ticket];
+        }
+
+        const remainsInQueue = isSenior
+          ? updated.status === "ESCALATED" ||
+            String(updated.assignedTo) === String(currentOfficerId) ||
+            (
+              updated.assignedTo == null &&
+              !["CLOSED", "REJECTED", "RESOLVED"].includes(
+                updated.status
+              )
+            )
+          : String(updated.assignedTo) === String(currentOfficerId);
+
+        return remainsInQueue ? [updated] : [];
+      })
+    );
+
+    setNextStatus("");
+    setRemarks("");
+
+    setNotice(
+      updated.status === "ESCALATED"
+        ? "Grievance escalated successfully."
+        : "Grievance status updated successfully."
+    );
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      setError(err.message || "Unable to update grievance.");
+    }
+  } finally {
+    if (mutation.current === controller) {
+      busy.current = false;
+      setSaving(false);
     }
   }
+}
+  async function saveAssignment(event) {
+  event.preventDefault();
+
+  if (busy.current || !selected || !isSenior || !targetOfficerId) {
+    return;
+  }
+
+  const controller = new AbortController();
+  mutation.current = controller;
+  busy.current = true;
+
+  listController.current?.abort();
+  ++listVersion.current;
+
+  setSaving(true);
+  setError("");
+  setNotice("");
+
+  try {
+    const response = await assignGrievance(
+        selected.grievanceId,
+        Number(targetOfficerId),
+        session,
+        controller.signal
+      );
+
+      if (controller.signal.aborted) return;
+
+      const saved = response?.data ?? response;
+
+      setTickets((previous) =>
+        previous.map((ticket) =>
+          String(ticket.grievanceId) === String(saved.grievanceId)
+            ? { ...ticket, ...saved }
+            : ticket
+        )
+      );
+
+      setTargetOfficerId("");
+      setNotice(
+        `Grievance #${saved.grievanceId} assigned to officer #${saved.assignedTo}.`
+      );
+  } catch (err) {
+    if (!controller.signal.aborted) {
+      setError(err.message || "Unable to assign officer.");
+    }
+  } finally {
+    if (mutation.current === controller) {
+      busy.current = false;
+      setSaving(false);
+    }
+  }
+}
+//   async function handleAssign(event) {
+//   event.preventDefault();
+
+//   setSaving(true);
+//   setFormError("");
+//   setNotice("");
+
+//   const controller = new AbortController();
+//   const timeout = setTimeout(() => controller.abort(), 30000);
+
+//   try {
+//     const saved = await assignGrievance(
+//       selectedGrievance.grievanceId,
+//       Number(officerId),
+//       session,
+//       controller.signal
+//     );
+
+//     const updated = saved?.data ?? saved;
+
+//     setGrievances((previous) =>
+//       previous.map((item) =>
+//         String(item.grievanceId) === String(updated.grievanceId)
+//           ? { ...item, ...updated }
+//           : item
+//       )
+//     );
+
+//     setSelectedGrievance(updated);
+//     setNotice("Officer assigned successfully.");
+//   } catch (error) {
+//     setFormError(
+//       error.name === "AbortError"
+//         ? "Assignment timed out. Check the Collateral/Grievance service logs."
+//         : error.message
+//     );
+//   } finally {
+//     clearTimeout(timeout);
+//     setSaving(false);
+//   }
+// }
+//   async function handleStatusUpdate(event) {
+//   event.preventDefault();
+
+//   setSaving(true);
+//   setNotice("");
+//   setError("");
+
+//   try {
+//     const saved = await updateAssignedGrievance(
+//         session,
+//         grievance.grievanceId,
+//         change,
+//         signal
+//       );
+
+//     const updated = saved?.data ?? saved;
+
+//     setGrievances((previous) =>
+//       previous.map((item) =>
+//         String(item.grievanceId) === String(saved.grievanceId)
+//           ? { ...item, ...saved }
+//           : item
+//       )
+//     );
+
+//     setSelectedGrievance((previous) =>
+//       previous && String(previous.grievanceId) === String(saved.grievanceId)
+//         ? { ...previous, ...saved }
+//         : previous
+//     );
+
+//     setNotice("Status updated successfully.");
+//   } catch (error) {
+//     setError(error.message || "Unable to update grievance.");
+//   } finally {
+//     setSaving(false);
+//   }
+// }
 
   const availableActions = TRANSITIONS[selected?.status] || [];
   const metrics = [
@@ -248,6 +419,7 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
         </div>
         <button type="button" disabled={loading || saving} onClick={() => { setNotice(""); setRefresh((v) => v + 1); }} className="rounded-full border bg-white px-5 py-3 text-sm disabled:opacity-50">Refresh</button>
       </header>
+    {isSenior && <SeniorOverdueNotice session={session} />}
 
       {error && <p role="alert" className="mx-auto mb-5 max-w-7xl rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {notice && <p role="status" className="mx-auto mb-5 max-w-7xl rounded-xl bg-lime-50 p-4 text-sm text-lime-800">{notice}</p>}
@@ -324,3 +496,5 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
     </div>
   );
 }
+
+
