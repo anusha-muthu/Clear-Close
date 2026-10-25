@@ -137,4 +137,63 @@ class AutomaticNocIssuanceTests {
         assertThrows(ResponseStatusException.class, () -> service.recentCertificates(borrower));
         verify(nocs, never()).findTop100ByOrderByCreatedAtDescNocIdDesc();
     }
+
+    private Noc certificate(long id, int version, String status) {
+        Noc noc = new Noc();
+        noc.setNocId(id);
+        noc.setLoanId(41L);
+        noc.setVersionNumber(version);
+        noc.setCertificateNumber("NOC-TEST-" + id);
+        noc.setIssueDate(java.time.LocalDate.of(2026, 10, 24));
+        noc.setNocStatus(status);
+        return noc;
+    }
+
+    @Test
+    void successfulReissueRevokesOriginalAndRecordsOfficer() {
+        Noc original = certificate(5L, 1, "AVAILABLE");
+        when(nocs.findTopByLoanIdOrderByVersionNumberDesc(41L)).thenReturn(Optional.of(original));
+        var officer = new NocAccess.Actor(2101L, "OFFICER", "LOAN_CLOSURE_OFFICER");
+
+        var result = service.reissue(41L, officer);
+
+        assertEquals("AVAILABLE", result.status());
+        assertEquals(2, result.versionNumber());
+        assertNotEquals(original.getCertificateNumber(), result.certificateNumber());
+        assertEquals("REVOKED", original.getNocStatus());
+        verify(access).requireLoan(officer, 41L, true);
+        verify(audits).save(argThat(a -> "REISSUED".equals(a.getAction()) && Long.valueOf(2101L).equals(a.getActorId())));
+    }
+
+    @Test
+    void failedReissueKeepsOriginalAvailable() throws Exception {
+        Noc original = certificate(5L, 1, "AVAILABLE");
+        when(nocs.findTopByLoanIdOrderByVersionNumberDesc(41L)).thenReturn(Optional.of(original));
+        Path file = storage.resolve("blocked");
+        Files.writeString(file, "not a directory");
+        ReflectionTestUtils.setField(service, "storageDirectory", file.toString());
+
+        var result = service.reissue(41L, new NocAccess.Actor(2101L, "OFFICER", "LOAN_CLOSURE_OFFICER"));
+
+        assertEquals("FAILED", result.status());
+        assertEquals("AVAILABLE", original.getNocStatus());
+        verify(audits, never()).save(argThat(a -> "REVOKED".equals(a.getAction())));
+    }
+
+    @Test
+    void recoveredReplacementRevokesOriginal() {
+        Noc original = certificate(5L, 1, "AVAILABLE");
+        Noc replacement = certificate(6L, 2, "FAILED");
+        when(nocs.findById(6L)).thenReturn(Optional.of(replacement));
+        when(nocs.findTopByLoanIdOrderByVersionNumberDesc(41L)).thenReturn(Optional.of(replacement));
+        when(nocs.findByLoanIdOrderByVersionNumberDesc(41L)).thenReturn(List.of(replacement, original));
+        when(nocs.save(any(Noc.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.retry(6L, new NocAccess.Actor(2101L, "OFFICER", "LOAN_CLOSURE_OFFICER"));
+
+        assertEquals("AVAILABLE", result.status());
+        assertEquals("REVOKED", original.getNocStatus());
+        assertEquals("AVAILABLE", replacement.getNocStatus());
+        verify(audits).save(argThat(a -> "REVOKED".equals(a.getAction())));
+    }
 }
