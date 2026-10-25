@@ -114,7 +114,8 @@ public class SecurityConfig {
                                 "/api/grievances",
                                 "/api/grievances/status/**",
                                 "/api/grievances/loan/**",
-                                "/api/grievances/overdue")
+                                "/api/grievances/overdue",
+                                "/api/grievances/senior/overdue-notifications")
                         .hasRole("SENIOR_GRIEVANCE_OFFICER")
                         .requestMatchers(HttpMethod.PATCH, "/api/grievances/*/assign")
                         .hasRole("SENIOR_GRIEVANCE_OFFICER")

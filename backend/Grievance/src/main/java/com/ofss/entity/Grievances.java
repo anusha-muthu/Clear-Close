@@ -27,7 +27,10 @@ public class Grievances {
 	private LocalDateTime createdAt;
 	@Column(name = "UPDATED_AT", nullable = false, insertable = false, updatable = false)
 	private LocalDateTime updatedAt;
-	
+	@Column(name = "SENIOR_ESCALATED_AT")
+	private LocalDateTime seniorEscalatedAt;
+
+
 	@PrePersist
 	protected void onCreate() {
 	    if (this.createdAt == null) {
@@ -55,7 +58,7 @@ public class Grievances {
 	}
 	public Grievances(Long grievanceId, Long loanAccountId, Long borrowerId, String description,
 			String category, String status, Long assignedTo, String resolutionRemarks, LocalDateTime createdAt,
-			LocalDateTime updatedAt) {
+			LocalDateTime updatedAt,LocalDateTime seniorEscalatedAt) {
 		super();
 		this.grievanceId = grievanceId;
 		this.loanAccountId = loanAccountId;
@@ -67,6 +70,7 @@ public class Grievances {
 		this.resolutionRemarks = resolutionRemarks;
 		this.createdAt = createdAt;
 		this.updatedAt = updatedAt;
+		this.seniorEscalatedAt=seniorEscalatedAt;
 	}
 	public Long getGrievanceId() {
 		return grievanceId;
@@ -104,6 +108,14 @@ public class Grievances {
 	public void setStatus(String status) {
 		this.status = status;
 	}
+	public java.time.LocalDateTime getSeniorEscalatedAt() {
+	    return seniorEscalatedAt;
+	}
+
+	public void setSeniorEscalatedAt(java.time.LocalDateTime value) {
+	    this.seniorEscalatedAt = value;
+	}
+
 	public Long getAssignedTo() {
 		return assignedTo;
 	}

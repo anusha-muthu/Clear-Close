@@ -88,12 +88,17 @@ public class GrievanceService {
         if (grievanceId == null || grievanceId <= 0) {
             throw error(HttpStatus.BAD_REQUEST, "A valid grievance ID is required");
         }
+
         Grievances grievance = entityManager.find(
-            Grievances.class, grievanceId, LockModeType.PESSIMISTIC_WRITE);
-        if (grievance == null) throw error(HttpStatus.NOT_FOUND, "Grievance not found");
-        // A controller read may have populated the persistence context already.
-        // Refresh while locked so authorization uses the current assignment.
-        entityManager.refresh(grievance, LockModeType.PESSIMISTIC_WRITE);
+            Grievances.class,
+            grievanceId,
+            LockModeType.PESSIMISTIC_WRITE
+        );
+
+        if (grievance == null) {
+            throw error(HttpStatus.NOT_FOUND, "Grievance not found");
+        }
+
         return grievance;
     }
 
@@ -227,8 +232,13 @@ public class GrievanceService {
     @Transactional
     public Grievances assignGrievance(
             Long grievanceId, Long officerId, Long actionBy, String actorType) {
+    	long started = System.currentTimeMillis();
         Officer senior = requireSenior(actionBy, actorType);
+        log.info("Senior validation took {} ms",
+                System.currentTimeMillis() - started);
         Grievances grievance = lockedGrievance(grievanceId);
+        log.info("Grievance lock took {} ms",
+                System.currentTimeMillis() - started);
         if (Objects.equals(senior.borrowerId(), grievance.getBorrowerId())) {
             throw error(HttpStatus.FORBIDDEN, "An officer cannot review their own borrower grievance");
         }
@@ -239,6 +249,8 @@ public class GrievanceService {
             throw error(HttpStatus.CONFLICT, "A completed grievance cannot be reassigned");
         }
         Officer target = activeOfficer(officerId);
+        log.info("Target officer lookup took {} ms",
+                System.currentTimeMillis() - started);
         if (Objects.equals(target.borrowerId(), grievance.getBorrowerId())) {
             throw error(HttpStatus.FORBIDDEN, "An officer cannot review their own borrower grievance");
         }
@@ -253,6 +265,11 @@ public class GrievanceService {
             return grievance;
         }
         grievance.setAssignedTo(officerId);
+        if ("SENIOR_GRIEVANCE_OFFICER".equals(target.role())
+                && grievance.getSeniorEscalatedAt() == null) {
+            grievance.setSeniorEscalatedAt(LocalDateTime.now());
+        }
+
         grievance.setUpdatedAt(LocalDateTime.now());
         Grievances saved = grievanceRepository.save(grievance);
         saveHistory(grievanceId, saved.getStatus(), saved.getStatus(),
@@ -296,10 +313,13 @@ public class GrievanceService {
             return false;
         }
 
-        Long seniorId =
-            ((Number) officers.get(0)).longValue();
+        Long seniorId =((Number) officers.get(0)).longValue();
 
         grievance.setAssignedTo(seniorId);
+        if (grievance.getSeniorEscalatedAt() == null) {
+            grievance.setSeniorEscalatedAt(LocalDateTime.now());
+        }
+
         return true;
     }
     private Officer requireSenior(Long actorId, String actorType) {
@@ -385,8 +405,13 @@ public class GrievanceService {
 
     @Transactional(readOnly = true)
     public List<Grievances> getOverdueGrievances() {
+        LocalDateTime now = LocalDateTime.now();
         return grievanceRepository.findByStatusNotInAndCreatedAtBefore(
-            List.of("RESOLVED", "REJECTED", "CLOSED", "ESCALATED"), LocalDateTime.now().minusDays(7));
+                List.of("RESOLVED", "REJECTED", "CLOSED", "ESCALATED"),
+                now.minusDays(7))
+            .stream()
+            .filter(g -> GrievancePolicy.isOverdue(g.getStatus(), g.getCreatedAt(), now))
+            .toList();
     }
 
     // Called through a separate Spring bean so the transaction interceptor runs.
@@ -434,6 +459,53 @@ public class GrievanceService {
         }
         return changed;
     }
+    
+
+    public record SeniorOverdueNotice(
+    	    Long grievanceId, String status,
+    	    LocalDateTime seniorEscalatedAt, LocalDateTime dueAt, String message) {}
+
+    @Transactional(readOnly = true)
+    public List<SeniorOverdueNotice> getSeniorOverdueNotifications(Long officerId) {
+        Officer officer = activeOfficer(officerId);
+
+        if (!"SENIOR_GRIEVANCE_OFFICER".equals(officer.role())) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Senior grievance officer access required"
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return grievanceRepository.findAll().stream()
+            .filter(g -> Objects.equals(g.getAssignedTo(), officerId))
+            .filter(g -> !List.of("CLOSED", "RESOLVED", "REJECTED").contains(g.getStatus()))
+            .filter(g -> g.getSeniorEscalatedAt() != null)
+            .filter(g -> GrievanceWorkingDays.isOverdue(
+                g.getSeniorEscalatedAt(),
+                now,
+                7,
+                GrievanceCalendar.HOLIDAYS
+            ))
+            .map(g -> {
+                LocalDateTime dueAt = GrievanceWorkingDays.dueAt(
+                    g.getSeniorEscalatedAt(),
+                    7,
+                    GrievanceCalendar.HOLIDAYS
+                );
+
+                return new SeniorOverdueNotice(
+                    g.getGrievanceId(),
+                    g.getStatus(),
+                    g.getSeniorEscalatedAt(),
+                    dueAt,
+                    "This grievance has not been resolved after seven working days."
+                );
+            })
+            .toList();
+    }
+
 
     private void publishAudit(Grievances saved, String action, Long actingOfficerId) {
         // OFFICER_ID is the acting officer, not automatically the assignee.

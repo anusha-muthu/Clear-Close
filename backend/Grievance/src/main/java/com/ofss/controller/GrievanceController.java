@@ -3,6 +3,7 @@ package com.ofss.controller;
 import com.ofss.entity.Grievances;
 import com.ofss.entity.GrievancesHistory;
 import com.ofss.service.GrievanceService;
+import com.ofss.service.GrievanceService.SeniorOverdueNotice;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -55,6 +56,22 @@ public class GrievanceController {
         Grievances grievance = grievanceService.getGrievance(id);
         requireGrievanceAccess(grievance, jwt);
         return grievance;
+    }
+    
+    @GetMapping("/senior/overdue-notifications")
+    public List<SeniorOverdueNotice> getSeniorOverdueNotifications(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Number claim = jwt.getClaim("officerId");
+        if (claim == null) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Officer ID is missing from the token"
+            );
+        }
+
+        Long officerId = claim.longValue();
+        return grievanceService.getSeniorOverdueNotifications(officerId);
     }
 
     //---------------- View borrower grievances

@@ -173,9 +173,12 @@ public class SecurityConfig {
 
                 // Audit history is restricted to authorized officers
                 .pathMatchers(HttpMethod.GET, "/api/audit/entity/**")
-                .hasAnyRole("ADMIN", "LOAN_CLOSURE_OFFICER")
+                .hasAnyRole( "LOAN_CLOSURE_OFFICER")
                 .pathMatchers(HttpMethod.GET, "/api/audit", "/api/audit/user/**")
                 .hasRole("ADMIN")
+                
+                .pathMatchers(HttpMethod.GET, "/api/grievances/senior/overdue-notifications")
+                .hasRole("SENIOR_GRIEVANCE_OFFICER")
 
                 // Borrower endpoints
                 .pathMatchers(

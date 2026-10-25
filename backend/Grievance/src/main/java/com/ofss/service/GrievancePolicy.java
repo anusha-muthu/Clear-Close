@@ -13,18 +13,14 @@ public final class GrievancePolicy {
     );
 
     public static final Set<String> STATUSES = Set.of(
-        "OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED", "RESOLVED",
-        "REJECTED", "ESCALATED", "CLOSED"
+        "OPEN", "IN_PROGRESS","ESCALATED", "CLOSED"
     );
 
     private static final Set<String> CATEGORIES = Set.of("DELAY", "SETTLEMENT", "SYSTEM", "OTHER");
     private static final Map<String, Set<String>> TRANSITIONS = Map.of(
-        "OPEN", Set.of("IN_PROGRESS", "ESCALATED"),
-        "IN_PROGRESS", Set.of("MORE_INFO_REQUIRED", "RESOLVED", "REJECTED", "ESCALATED"),
-        "MORE_INFO_REQUIRED", Set.of("IN_PROGRESS", "ESCALATED"),
-        "ESCALATED", Set.of("IN_PROGRESS", "MORE_INFO_REQUIRED", "RESOLVED", "REJECTED"),
-        "RESOLVED", Set.of("CLOSED"),
-        "REJECTED", Set.of(),
+        "OPEN", Set.of("IN_PROGRESS", "ESCALATED","CLOSED"),
+        "IN_PROGRESS", Set.of( "ESCALATED","CLOSED"),
+        "ESCALATED", Set.of("IN_PROGRESS", "CLOSED"),
         "CLOSED", Set.of()
     );
 
@@ -49,10 +45,12 @@ public final class GrievancePolicy {
         };
     }
 
-    // Five elapsed days since submission, not five days since the last update.
-    public static boolean isOverdue(String status, LocalDateTime createdAt, LocalDateTime now) {
-        return Set.of("OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED").contains(status)
-            && createdAt != null && now != null && createdAt.isBefore(now.minusDays(7));
+    public static boolean isOverdue(
+            String status, java.time.LocalDateTime createdAt,
+            java.time.LocalDateTime now) {
+        String value = status == null ? "" : normalize(status);
+        return java.util.List.of("OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED").contains(value)
+            && GrievanceWorkingDays.isOverdue(createdAt, now, 7, GrievanceCalendar.HOLIDAYS);
     }
 
     public static boolean canTransition(String oldStatus, String newStatus) {

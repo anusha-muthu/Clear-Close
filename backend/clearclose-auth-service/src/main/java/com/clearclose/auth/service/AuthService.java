@@ -206,12 +206,17 @@ public class AuthService {
 
     private AuthResponse createResponse(Account account) {
 
-        String token = jwtService.generateToken(
-            account.id(),
-            account.username(),
-            account.accountType(),
-            account.role()
-        );
+    	Long officerId = "OFFICER".equals(account.accountType())
+    		    ? account.id()
+    		    : null;
+
+    		String token = jwtService.generateToken(
+    		    account.id(),
+    		    officerId,
+    		    account.username(),
+    		    account.accountType(),
+    		    account.role()
+    		);
 
         return new AuthResponse(
             token,

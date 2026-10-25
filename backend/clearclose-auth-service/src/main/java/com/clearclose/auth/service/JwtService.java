@@ -28,32 +28,32 @@ public class JwtService {
     }
 
     public String generateToken(
-        Long userId,
-        String username,
-        String accountType,
-        String role
-    ) {
-        Instant now = Instant.now();
+    	    Long userId,
+    	    Long officerId,
+    	    String username,
+    	    String accountType,
+    	    String role
+    	) {
+    	    Instant now = Instant.now();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-            .issuer("clearclose-auth")
-            .subject(accountType + ":" + userId)
-            .issuedAt(now)
-            .expiresAt(
-                now.plus(expirationMinutes, ChronoUnit.MINUTES)
-            )
-            .claim("userId", userId)
-            .claim("username", username)
-            .claim("accountType", accountType)
-            .claim("role", role)
-            .build();
+    	    JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
+    	        .issuer("clearclose-auth")
+    	        .subject(accountType + ":" + userId)
+    	        .issuedAt(now)
+    	        .expiresAt(now.plus(expirationMinutes, ChronoUnit.MINUTES))
+    	        .claim("userId", userId)
+    	        .claim("username", username)
+    	        .claim("accountType", accountType)
+    	        .claim("role", role);
 
-        JwsHeader header = JwsHeader
-            .with(MacAlgorithm.HS256)
-            .build();
+    	    if ("OFFICER".equals(accountType)) {
+    	        claims.claim("officerId", officerId);
+    	    }
 
-        return jwtEncoder.encode(
-            JwtEncoderParameters.from(header, claims)
-        ).getTokenValue();
-    }
+    	    JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+
+    	    return jwtEncoder.encode(
+    	        JwtEncoderParameters.from(header, claims.build())
+    	    ).getTokenValue();
+    	}
 }
