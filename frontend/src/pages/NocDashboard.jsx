@@ -469,6 +469,8 @@ function NocWorkspace({ session, onLogout }) {
                       <td><StatusBadge status={certificate.status} /></td>
                       <td><button type="button" className="noc-text-button" disabled={Boolean(busy)}
                         onClick={() => { setLoanInput(String(certificate.loanId)); chooseLoan(String(certificate.loanId)); }}>View</button>
+                      {canManage && certificate.status === "AVAILABLE" && <button type="button" className="noc-text-button" disabled={Boolean(busy)}
+                        onClick={() => { setLoanInput(String(certificate.loanId)); chooseLoan(String(certificate.loanId)); }}>Manage / Reissue</button>}
                       {certificate.status === "AVAILABLE" && <button type="button" className="noc-text-button" disabled={Boolean(busy)}
                         onClick={() => handleDownload(certificate)}>Download PDF</button>}</td>
                     </tr>
@@ -637,7 +639,7 @@ function NocWorkspace({ session, onLogout }) {
                         disabled={blocked || !eligibility?.eligible}
                         onClick={() => manageCertificate("reissue")}
                       >
-                        Reissue latest certificate
+                        {busy === "reissue" ? "Reissuing NOC..." : "Reissue NOC"}
                       </button>
                     )}
 

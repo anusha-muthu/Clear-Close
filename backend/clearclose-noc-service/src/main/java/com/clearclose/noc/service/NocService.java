@@ -458,6 +458,12 @@ public class NocService {
         LoanDetails loan = getLoan(noc.getLoanId(), true);
         validateEligibility(loan);
 
+        Noc latest = nocRepository.findTopByLoanIdOrderByVersionNumberDesc(noc.getLoanId())
+                .orElseThrow(() -> conflict("No existing NOC found"));
+        if (!noc.getNocId().equals(latest.getNocId())) {
+            throw conflict("Only the latest certificate can be retried");
+        }
+
         if (!"FAILED".equals(noc.getNocStatus())
                 && !"DELAYED".equals(noc.getNocStatus())) {
 
@@ -488,13 +494,24 @@ public class NocService {
             audit(noc, "GENERATED",
                     actor.id(), "Retry successful");
 
-            return NocResponse.from(noc);
-
         } catch (Exception ex) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "PDF retry failed", ex);
         }
+
+        // A failed replacement leaves the original valid. Revoke it only once
+        // recovery succeeds, using the same loan lock as normal reissuance.
+        for (Noc previous : nocRepository.findByLoanIdOrderByVersionNumberDesc(noc.getLoanId())) {
+            if (previous.getVersionNumber() < noc.getVersionNumber()
+                    && "AVAILABLE".equals(previous.getNocStatus())) {
+                previous.setNocStatus("REVOKED");
+                previous.setRemarks("Superseded by " + noc.getCertificateNumber());
+                nocRepository.save(previous);
+                audit(previous, "REVOKED", actor.id(), "Replacement certificate recovered successfully");
+            }
+        }
+        return NocResponse.from(noc);
     }
 
     @Transactional(readOnly = true)
