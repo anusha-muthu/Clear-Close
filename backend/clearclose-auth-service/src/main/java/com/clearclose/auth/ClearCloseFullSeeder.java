@@ -84,7 +84,11 @@ public class ClearCloseFullSeeder {
 
                 {2103, "Om Prakash", "om_officer26",
                  "Om@12345", "om26@bank.example",
-                 "COLLATERAL_OFFICER", "OMPRA2954N", "Mumbai"}
+                 "COLLATERAL_OFFICER", "OMPRA2954N", "Mumbai"},
+                 
+                 {2104, "Rio Das", "Rio_officer26",
+                     "Rio@12345", "Rio26@bank.example",
+                     "SENIOR_GRIEVANCE_OFFICER", "RODSA2385I", "Chennai"}
             };
 
             for (Object[] o : officers) {
