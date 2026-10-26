@@ -87,7 +87,7 @@ BEGIN
             'LOAN_CLOSURE_OFFICER',
             'GRIEVANCE_OFFICER',
             'COLLATERAL_OFFICER',
-            'ADMIN'
+            'SENIOR_GRIEVANCE_OFFICER'
         )
     ),
 
