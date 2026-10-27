@@ -28,8 +28,7 @@ public class GrievanceController {
 
     //---------------- Submit grievance
     @PostMapping
-    public Grievances submit(
-            @RequestBody Grievances grievance,
+    public Grievances submit(@RequestBody Grievances grievance,
             @AuthenticationPrincipal Jwt jwt) {
         requireBorrower(jwt);
         grievance.setBorrowerId(requireUserId(jwt));
@@ -50,29 +49,28 @@ public class GrievanceController {
 
     //--------------- View one grievance
     @GetMapping("/{id}")
-    public Grievances getOne(
-            @PathVariable("id") Long id,
+    public Grievances getOne(@PathVariable("id") Long id,
             @AuthenticationPrincipal Jwt jwt) {
         Grievances grievance = grievanceService.getGrievance(id);
         requireGrievanceAccess(grievance, jwt);
         return grievance;
     }
     
-    @GetMapping("/senior/overdue-notifications")
-    public List<SeniorOverdueNotice> getSeniorOverdueNotifications(
-            @AuthenticationPrincipal Jwt jwt) {
-
-        Number claim = jwt.getClaim("officerId");
-        if (claim == null) {
-            throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Officer ID is missing from the token"
-            );
-        }
-
-        Long officerId = claim.longValue();
-        return grievanceService.getSeniorOverdueNotifications(officerId);
-    }
+//    @GetMapping("/senior/overdue-notifications")
+//    public List<SeniorOverdueNotice> getSeniorOverdueNotifications(
+//            @AuthenticationPrincipal Jwt jwt) {
+//
+//        Number claim = jwt.getClaim("officerId");
+//        if (claim == null) {
+//            throw new ResponseStatusException(
+//                HttpStatus.FORBIDDEN,
+//                "Officer ID is missing from the token"
+//            );
+//        }
+//
+//        Long officerId = claim.longValue();
+//        return grievanceService.getSeniorOverdueNotifications(officerId);
+//    }
 
     //---------------- View borrower grievances
     @GetMapping("/borrower/{borrowerId}")
@@ -154,21 +152,6 @@ public class GrievanceController {
         return grievanceService.getHistory(id);
     }
     
-//    //---------------Filter grievances by status
-//    @GetMapping("/status/{status}")
-//    public List<Grievances> getByStatus(@PathVariable("status") String status, @AuthenticationPrincipal Jwt jwt) {
-//        requireAdmin(jwt);
-//        return grievanceService.getByStatus(status);
-//    }
-//
-//
-//    // --------------Find grievances related to the loan id 
-//    @GetMapping("/loan/{loanId}")
-//    public List<Grievances> getByLoanId(
-//            @PathVariable("loanId") Long loanId, @AuthenticationPrincipal Jwt jwt) {
-//        requireAdmin(jwt);
-//        return grievanceService.getByLoanId(loanId);
-//    }
 
     // -------------------Find grievances exceeding the window
     @GetMapping("/overdue")

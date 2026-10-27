@@ -403,7 +403,7 @@ public class GrievanceService {
         return grievanceRepository.findByLoanAccountId(loanId);
     }
 
-    @Transactional(readOnly = true)
+//    @Transactional(readOnly = true)
     public List<Grievances> getOverdueGrievances() {
         LocalDateTime now = LocalDateTime.now();
         return grievanceRepository.findByStatusNotInAndCreatedAtBefore(
@@ -452,7 +452,7 @@ public class GrievanceService {
             // Keep assignee and officer remarks. The system action goes in history.
             Grievances saved = grievanceRepository.save(grievance);
             saveHistory(saved.getGrievanceId(), oldStatus, "ESCALATED",
-                "Automatically escalated: unresolved for more than five days since submission.",
+                "Automatically escalated: unresolved for more than seven days since submission.",
                 null, "SYSTEM");
             publishAudit(saved, "GRIEVANCE_AUTO_ESCALATED", null);
             changed++;
@@ -480,32 +480,22 @@ public class GrievanceService {
 
         return grievanceRepository.findAll().stream()
             .filter(g -> Objects.equals(g.getAssignedTo(), officerId))
-            .filter(g -> !List.of("CLOSED", "RESOLVED", "REJECTED").contains(g.getStatus()))
+            .filter(g -> !List.of("CLOSED", "RESOLVED", "REJECTED")
+                .contains(g.getStatus()))
             .filter(g -> g.getSeniorEscalatedAt() != null)
-            .filter(g -> GrievanceWorkingDays.isOverdue(
-                g.getSeniorEscalatedAt(),
-                now,
-                7,
-                GrievanceCalendar.HOLIDAYS
-            ))
             .map(g -> {
-                LocalDateTime dueAt = GrievanceWorkingDays.dueAt(
-                    g.getSeniorEscalatedAt(),
-                    7,
-                    GrievanceCalendar.HOLIDAYS
-                );
-
+                LocalDateTime dueAt = g.getSeniorEscalatedAt().plusDays(7);
                 return new SeniorOverdueNotice(
                     g.getGrievanceId(),
                     g.getStatus(),
                     g.getSeniorEscalatedAt(),
                     dueAt,
-                    "This grievance has not been resolved after seven working days."
+                    "This grievance has not been resolved after seven calendar days."
                 );
             })
+            .filter(notice -> now.isAfter(notice.dueAt()))
             .toList();
     }
-
 
     private void publishAudit(Grievances saved, String action, Long actingOfficerId) {
         // OFFICER_ID is the acting officer, not automatically the assignee.

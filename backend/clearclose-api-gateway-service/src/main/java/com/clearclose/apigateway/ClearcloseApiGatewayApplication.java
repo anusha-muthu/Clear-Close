@@ -9,10 +9,6 @@ public class ClearcloseApiGatewayApplication {
 
     public static void main(String[] args) {
 
-        SpringApplication.run(
-            ClearcloseApiGatewayApplication.class,
-            args
-        );
-
+        SpringApplication.run(ClearcloseApiGatewayApplication.class, args);
     }
 }

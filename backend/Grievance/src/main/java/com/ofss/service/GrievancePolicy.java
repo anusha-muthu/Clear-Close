@@ -46,11 +46,14 @@ public final class GrievancePolicy {
     }
 
     public static boolean isOverdue(
-            String status, java.time.LocalDateTime createdAt,
-            java.time.LocalDateTime now) {
-        String value = status == null ? "" : normalize(status);
-        return java.util.List.of("OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED").contains(value)
-            && GrievanceWorkingDays.isOverdue(createdAt, now, 7, GrievanceCalendar.HOLIDAYS);
+            String status, LocalDateTime createdAt, LocalDateTime now) {
+        String value = normalize(status);
+
+        return createdAt != null
+            && now != null
+            && java.util.List.of("OPEN", "IN_PROGRESS", "MORE_INFO_REQUIRED")
+                .contains(value)
+            && now.isAfter(createdAt.plusDays(7));
     }
 
     public static boolean canTransition(String oldStatus, String newStatus) {

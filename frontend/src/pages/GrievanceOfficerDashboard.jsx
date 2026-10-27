@@ -5,7 +5,6 @@ import {
   assignGrievance,
   updateAssignedGrievance,
 } from "../officerGrievanceApi.jsx";
-import SeniorOverdueNotice from "../components/SeniorOverdueNotice";
 
 const CATEGORY_LABELS = {
   DELAY: "NOC / collateral processing delay",
@@ -419,7 +418,6 @@ export default function GrievanceOfficerDashboard({ session, onLogout }) {
         </div>
         <button type="button" disabled={loading || saving} onClick={() => { setNotice(""); setRefresh((v) => v + 1); }} className="rounded-full border bg-white px-5 py-3 text-sm disabled:opacity-50">Refresh</button>
       </header>
-    {isSenior && <SeniorOverdueNotice session={session} />}
 
       {error && <p role="alert" className="mx-auto mb-5 max-w-7xl rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {notice && <p role="status" className="mx-auto mb-5 max-w-7xl rounded-xl bg-lime-50 p-4 text-sm text-lime-800">{notice}</p>}

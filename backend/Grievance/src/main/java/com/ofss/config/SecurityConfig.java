@@ -66,8 +66,7 @@ public class SecurityConfig {
                             "LOAN_CLOSURE_OFFICER",
                             "GRIEVANCE_OFFICER",
                             "SENIOR_GRIEVANCE_OFFICER",
-                            "COLLATERAL_OFFICER",
-                            "ADMIN"
+                            "COLLATERAL_OFFICER"
                     ).contains(role)) {
                 return List.of(new SimpleGrantedAuthority("ROLE_" + role));
             }

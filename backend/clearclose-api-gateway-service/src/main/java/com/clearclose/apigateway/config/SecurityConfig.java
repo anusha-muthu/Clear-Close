@@ -112,8 +112,7 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityFilterChain(
         ServerHttpSecurity http,
-        ReactiveJwtAuthenticationConverter jwtConverter
-    ) {
+        ReactiveJwtAuthenticationConverter jwtConverter ) {
 
         return http
 
@@ -169,13 +168,13 @@ public class SecurityConfig {
                 // Collateral officer release actions
                 .pathMatchers(
                     "/api/collateral-release/requests/**"
-                ).hasAnyRole("COLLATERAL_OFFICER", "ADMIN")
+                ).hasAnyRole("COLLATERAL_OFFICER")
 
                 // Audit history is restricted to authorized officers
                 .pathMatchers(HttpMethod.GET, "/api/audit/entity/**")
                 .hasAnyRole( "LOAN_CLOSURE_OFFICER")
                 .pathMatchers(HttpMethod.GET, "/api/audit", "/api/audit/user/**")
-                .hasRole("ADMIN")
+                .hasRole("SENIOR_GRIEVANCE_OFFICER")
                 
                 .pathMatchers(HttpMethod.GET, "/api/grievances/senior/overdue-notifications")
                 .hasRole("SENIOR_GRIEVANCE_OFFICER")
