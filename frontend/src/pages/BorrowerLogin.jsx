@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { loginBorrower } from "../api";
 
-function BorrowerLogin({ onLogin }) {
+function BorrowerLogin({ onLogin, redirectTo = "#borrower-dashboard" }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -24,7 +24,7 @@ function BorrowerLogin({ onLogin }) {
       }
 
       onLogin(data);
-      window.location.hash = "#borrower-dashboard";
+      window.location.hash = redirectTo;
     } catch (loginError) {
       setError(loginError.message);
     } finally {

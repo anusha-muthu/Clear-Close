@@ -34,7 +34,26 @@ function Redirect({ to }) {
 }
 
 function App() {
-  const [route, setRoute] = useState(window.location.hash);
+  const [hash, setRoute] = useState(window.location.hash);
+  const [route, query = ""] = hash.split("?");
+  const routeParams = new URLSearchParams(query);
+  const borrowerDestinations = [
+    "#borrower-dashboard",
+    "#borrower-dashboard?section=cooling-off",
+    "#borrower-dashboard?section=preclosure",
+    "#grievance-dashboard",
+    "#noc-dashboard",
+    "#collateral-dashboard",
+  ];
+  const requestedDestination = routeParams.get("next");
+  const loginDestination = borrowerDestinations.includes(requestedDestination)
+    ? requestedDestination
+    : "#borrower-dashboard";
+  const borrowerLoginRoute = `#borrower-login?next=${encodeURIComponent(hash)}`;
+  const section = routeParams.get("section");
+  const borrowerSection = ["cooling-off", "preclosure"].includes(section)
+    ? section
+    : "overview";
 
   const [session, setSession] = useState(() => {
     try {
@@ -96,9 +115,9 @@ function App() {
   // Borrower login.
   if (route === "#borrower-login") {
     return isBorrower ? (
-      <Redirect to="#borrower-dashboard" />
+      <Redirect to={loginDestination} />
     ) : (
-      <BorrowerLogin onLogin={handleLogin} />
+      <BorrowerLogin onLogin={handleLogin} redirectTo={loginDestination} />
     );
   }
 
@@ -106,17 +125,19 @@ function App() {
   if (route === "#borrower-dashboard") {
     return isBorrower ? (
       <BorrowerDashboard
+        key={borrowerSection}
         session={session}
         onLogout={handleLogout}
+        initialSection={borrowerSection}
       />
     ) : (
-      <Redirect to="#borrower-login" />
+      <Redirect to={borrowerLoginRoute} />
     );
   }
      // NOC certificates: borrower access and authorized officer access.
   if (route === "#noc-dashboard") {
     if (!session?.token) {
-      return <Redirect to="#borrower-login" />;
+      return <Redirect to={borrowerLoginRoute} />;
     }
 
     const authorizedOfficer =
@@ -291,7 +312,7 @@ function App() {
     route === "#collateral-dashboard"
   ) {
     if (!isBorrower) {
-      return <Redirect to="#borrower-login" />;
+      return <Redirect to={borrowerLoginRoute} />;
     }
 
     return (

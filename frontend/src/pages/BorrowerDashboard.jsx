@@ -176,9 +176,9 @@ function DetailField({ label, value }) {
 // MAIN DASHBOARD
 // -----------------------------------------
 
-function BorrowerDashboard({ session, onLogout }) {
+function BorrowerDashboard({ session, onLogout, initialSection = "overview" }) {
 
-  const [activeMenu, setActiveMenu] = useState("overview");
+  const [activeMenu, setActiveMenu] = useState(initialSection);
   const [preClosureLoanId, setPreClosureLoanId] = useState(null);
   const [coolingOffLoanId, setCoolingOffLoanId] = useState("");
   const coolingOffDetailsRef = useRef(null);

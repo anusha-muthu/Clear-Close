@@ -6,6 +6,7 @@ const features = [
     description:
       "Check eligibility and exit a recently disbursed loan within the allowed cooling-off period.",
     color: "bg-sky-200",
+    href: "#borrower-dashboard?section=cooling-off",
   },
   {
     number: "02",
@@ -13,6 +14,7 @@ const features = [
     description:
       "Request normal or early closure, review your settlement amount, and track approval.",
     color: "bg-purple-200",
+    href: "#borrower-dashboard?section=preclosure",
   },
   {
   number: "03",
@@ -28,6 +30,7 @@ const features = [
     description:
       "Download your No Objection Certificate after your loan closure is approved.",
     color: "bg-orange-100",
+    href: "#noc-dashboard",
   },
   {
   number: "05",

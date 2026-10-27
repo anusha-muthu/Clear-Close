@@ -9,7 +9,8 @@
 -- Stop application services before running. Oracle DDL commits implicitly.
 -- This file does not empty tables or seed application records.
 -- COLLATERAL includes FILE_NAME and STORAGE_PATH required by its service entity.
--- Existing column definitions/constraints are not rewritten. A conflicting
+-- Existing column definitions/constraints are preserved except CHK_OFFICER_ROLE,
+-- which is upgraded on reruns to support SENIOR_GRIEVANCE_OFFICER. A conflicting
 -- non-table object or incompatible legacy schema fails visibly for review.
 -- ============================================================
 
@@ -101,6 +102,35 @@ BEGIN
     )
 )~';
     END IF;
+END;
+/
+
+
+-- Upgrade existing OFFICER tables too: CREATE TABLE above is skipped on reruns.
+-- Validate the replacement before dropping the old role constraint.
+DECLARE
+    constraint_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO constraint_count
+    FROM USER_CONSTRAINTS
+    WHERE TABLE_NAME = 'OFFICER'
+      AND CONSTRAINT_NAME = 'CHK_OFFICER_ROLE';
+
+    EXECUTE IMMEDIATE q'~ALTER TABLE OFFICER
+        ADD CONSTRAINT CHK_OFFICER_ROLE_UPGRADE CHECK (
+            ROLE IN (
+                'LOAN_CLOSURE_OFFICER',
+                'GRIEVANCE_OFFICER',
+                'COLLATERAL_OFFICER',
+                'SENIOR_GRIEVANCE_OFFICER'
+            )
+        ) ENABLE VALIDATE~';
+
+    IF constraint_count > 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE OFFICER DROP CONSTRAINT CHK_OFFICER_ROLE';
+    END IF;
+
+    EXECUTE IMMEDIATE 'ALTER TABLE OFFICER RENAME CONSTRAINT CHK_OFFICER_ROLE_UPGRADE TO CHK_OFFICER_ROLE';
 END;
 /
 
