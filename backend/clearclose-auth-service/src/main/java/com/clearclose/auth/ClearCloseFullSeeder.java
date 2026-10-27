@@ -414,7 +414,7 @@ public class ClearCloseFullSeeder {
                 (10101, 4103, 1103,
                  'NOC_DELAY',
                  'Unable to access NOC after closure.',
-                 'RESOLVED', 2102,
+                 'CLOSED', 2102,
                  'NOC download issue resolved.',
                  TIMESTAMP '2026-10-20 18:00:00')
                 """

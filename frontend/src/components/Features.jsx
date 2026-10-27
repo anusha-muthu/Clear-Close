@@ -14,7 +14,7 @@ const features = [
     description:
       "Request normal or early closure, review your settlement amount, and track approval.",
     color: "bg-purple-200",
-    href: "#borrower-dashboard?section=preclosure",
+    href: "#borrower-dashboard?section=cooling-off",
   },
   {
   number: "03",

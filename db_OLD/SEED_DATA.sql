@@ -11,7 +11,17 @@ INSERT INTO LOAN_PRODUCT_RULE
  collateral_release_requires_closure, effective_from, rule_status)
 VALUES
 (2, 'PERSONAL_LOAN', 5, 'Y', 'PERCENTAGE', 2, 'Y', 'N', DATE '2024-01-01', 'ACTIVE');
+---------------------------------------------------------------------------
 
+INSERT INTO LOAN_CLOSURE_REQUEST
+(CLOSURE_REQUEST_ID, LOAN_ID, OFFICER_ID,
+ REQUEST_DATE, CLOSURE_TYPE, STATUS, REASON)
+VALUES
+(3002, 2, 1,
+ DATE '2026-10-04', 'FORECLOSURE',
+ 'UNDER_REVIEW', 'Early loan repayment');
+ 
+ ---------------------------------
 -- drop table loan_product_rule cascade constraints
 -- BORROWERS: 40 distinct demo users; 39 LOCKED, 40 DISABLED.
 INSERT INTO BORROWERS

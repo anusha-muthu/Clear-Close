@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { getMyCollateralRequests, submitCollateralRequest, getCollateralEligibility } from "../collateralApi.js";
-import CollateralRegister from "../components/CollateralRegister.jsx";
 import CollateralEligibilityFields from "../components/CollateralEligibilityFields.jsx";
 import {
   getAssignedReleaseRequests,
@@ -44,8 +43,6 @@ export default function CollateralReleaseDashboard({ session, onLogout }) {
     && session?.accountType === "OFFICER"
     && ["COLLATERAL_OFFICER", "ADMIN"].includes(session?.role);
   const currentUserId = session?.userId == null ? null : String(session.userId);
-  const [officerView, setOfficerView] = useState("requests");
-  const [registerBusy, setRegisterBusy] = useState(false);
   const [requests, setRequests] = useState([]);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
@@ -260,18 +257,7 @@ export default function CollateralReleaseDashboard({ session, onLogout }) {
           </a>
           <p className="sidebar-heading officer-sidebar-label">Officer Portal</p>
           <nav aria-label="Collateral officer navigation" className="sidebar-nav officer-sidebar-nav">
-            <button type="button" aria-pressed={officerView === "requests"}
-              disabled={registerBusy || isActing} onClick={() => setOfficerView("requests")}
-              className={`sidebar-link ${officerView === "requests" ? "active" : ""}`}>
-              <span aria-hidden="true">▦</span>
-              Release Requests
-            </button>
-            <button type="button" aria-pressed={officerView === "register"}
-              disabled={registerBusy || isActing} onClick={() => setOfficerView("register")}
-              className={`sidebar-link ${officerView === "register" ? "active" : ""}`}>
-              <span aria-hidden="true">▤</span>
-              Collateral Register
-            </button>
+            
             <a href="#noc-dashboard" className="sidebar-link">
               <span aria-hidden="true">▧</span>
               NOC Certificates
@@ -302,8 +288,7 @@ export default function CollateralReleaseDashboard({ session, onLogout }) {
         {isBorrowerUser && <button type="button" disabled={loading || isSubmitting} onClick={() => { setFormError(""); setSelectionCheck(null); setIsNewRequestModalOpen(true); }} className="cursor-pointer whitespace-nowrap rounded-full bg-black px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800">+ Request Asset Release</button>}
       </header>
 
-      {isOfficerUser && officerView === "register" && <CollateralRegister session={session} onBusyChange={setRegisterBusy} />}
-      <div hidden={isOfficerUser && officerView === "register"}>
+      <div >
       <div className="mx-auto mb-5 flex max-w-7xl items-center justify-between gap-4">
         <p role={loadError ? "alert" : "status"} className={loadError ? "text-sm text-red-700" : "text-sm text-gray-500"}>
           {loadError || (loading ? "Loading requests…" : "Requests loaded.")}
