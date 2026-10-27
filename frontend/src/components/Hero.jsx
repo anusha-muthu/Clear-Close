@@ -8,6 +8,7 @@ const journeyOptions = [
     description:
       "Check whether your recently disbursed loan is eligible for a cooling-off exit.",
     action: "Check eligibility",
+    href: "#borrower-dashboard?section=cooling-off",
   },
   {
     id: "closure",
@@ -16,6 +17,7 @@ const journeyOptions = [
     description:
       "Review your settlement steps and start a normal or early loan closure request.",
     action: "Start closure",
+    href: "#borrower-dashboard?section=preclosure",
   },
   {
     id: "noc",
@@ -24,6 +26,7 @@ const journeyOptions = [
     description:
       "See your closure status and download your NOC when it is ready.",
     action: "Track NOC",
+    href: "#noc-dashboard",
   },
 ];
 
@@ -179,7 +182,7 @@ function Hero() {
           </p>
 
           <a
-            href="#features"
+            href={activeJourney.href}
             className="mx-auto mt-5 flex w-fit rounded-full bg-black px-8 py-3 text-sm font-semibold text-white hover:bg-gray-800"
           >
             {activeJourney.action} &rarr;
